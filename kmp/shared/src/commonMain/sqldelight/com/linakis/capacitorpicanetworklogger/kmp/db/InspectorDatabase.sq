@@ -1,0 +1,55 @@
+CREATE TABLE http_logs (
+  id TEXT NOT NULL PRIMARY KEY,
+  start_ts INTEGER NOT NULL,
+  duration_ms INTEGER,
+  method TEXT NOT NULL,
+  url TEXT NOT NULL,
+  host TEXT,
+  path TEXT,
+  query TEXT,
+  req_headers_json TEXT,
+  req_body TEXT,
+  req_body_truncated INTEGER DEFAULT 0,
+  res_status INTEGER,
+  res_headers_json TEXT,
+  res_body TEXT,
+  res_body_truncated INTEGER DEFAULT 0,
+  protocol TEXT,
+  ssl INTEGER DEFAULT 0,
+  error INTEGER DEFAULT 0,
+  error_message TEXT,
+  platform TEXT,
+  correlation_id TEXT
+);
+
+CREATE INDEX http_logs_start_ts ON http_logs(start_ts);
+CREATE INDEX http_logs_status ON http_logs(res_status);
+CREATE INDEX http_logs_host ON http_logs(host);
+
+selectAll:
+SELECT * FROM http_logs ORDER BY start_ts DESC;
+
+selectById:
+SELECT * FROM http_logs WHERE id = ?;
+
+deleteAll:
+DELETE FROM http_logs;
+
+insertStart:
+INSERT OR REPLACE INTO http_logs(
+  id, start_ts, method, url, host, path, query,
+  req_headers_json, req_body, req_body_truncated, platform, correlation_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateFinish:
+UPDATE http_logs SET
+  duration_ms = ?,
+  res_status = ?,
+  res_headers_json = ?,
+  res_body = ?,
+  res_body_truncated = ?,
+  protocol = ?,
+  ssl = ?,
+  error = ?,
+  error_message = ?
+WHERE id = ?;
