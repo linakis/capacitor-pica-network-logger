@@ -15,7 +15,9 @@ object InspectorNotifications {
     fun show(context: Context, method: String, url: String, status: Int?) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW)
+            channel.setSound(null, null)
+            channel.enableVibration(false)
             manager.createNotificationChannel(channel)
         }
 
@@ -37,7 +39,7 @@ object InspectorNotifications {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(summary.ifEmpty { "Network Inspector" })
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(pending)
             .setAutoCancel(true)
 

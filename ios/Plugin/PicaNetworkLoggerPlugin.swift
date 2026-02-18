@@ -92,7 +92,7 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func showNotification(_ call: CAPPluginCall) {
-        InspectorNotifications.show(title: "", body: "")
+        InspectorNotifications.show(method: "", url: "", status: nil)
         call.resolve()
     }
 

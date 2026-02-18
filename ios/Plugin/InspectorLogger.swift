@@ -81,23 +81,8 @@ class InspectorLogger {
         if notifyEnabled {
             let method = payload["method"] as? String ?? ""
             let url = payload["url"] as? String ?? ""
-            let status = payload["status"] as? Int ?? 0
-            let path: String = {
-                guard let urlObj = URL(string: url) else { return "" }
-                let rawPath = urlObj.path
-                let rawQuery = urlObj.query
-                if let rawQuery = rawQuery, !rawQuery.isEmpty {
-                    return "\(rawPath)?\(rawQuery)"
-                }
-                return rawPath
-            }()
-            var titleParts: [String] = []
-            if status > 0 { titleParts.append("\(status)") }
-            if !method.isEmpty { titleParts.append(method) }
-            if !path.isEmpty { titleParts.append(path) }
-            let title = titleParts.isEmpty ? "Network Inspector" : titleParts.joined(separator: " ")
-            let body = url.isEmpty ? "Tap to open" : url
-            InspectorNotifications.show(title: title, body: body)
+            let status = payload["status"] as? Int
+            InspectorNotifications.show(method: method, url: url, status: status)
         }
         #endif
     }
