@@ -1,7 +1,16 @@
 {
   "name": "capacitor-pica-network-logger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capacitor HTTP network logger with debug-only native capture",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/linakis/capacitor-pica-network-logger.git"
+  },
+  "homepage": "https://github.com/linakis/capacitor-pica-network-logger#readme",
+  "bugs": {
+    "url": "https://github.com/linakis/capacitor-pica-network-logger/issues"
+  },
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
