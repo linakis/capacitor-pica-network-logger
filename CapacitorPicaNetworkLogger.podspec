@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'CapacitorPicaNetworkLogger'
-  s.version = '0.1.2'
+  s.version = '0.1.3'
   s.summary = 'Capacitor HTTP inspector'
   s.license = 'MIT'
   s.author = { 'Nikos Linakis' => 'nikos@linakis.net' }

@@ -3,6 +3,12 @@ android/build/
 kmp/.gradle/
 kmp/build/
 kmp/shared/build/
+**/.gradle/
+**/build/
+**/build/**
+**/.gradle/**
+android/**/build/
+kmp/**/build/
 examples/
 node_modules/
 tmp/
