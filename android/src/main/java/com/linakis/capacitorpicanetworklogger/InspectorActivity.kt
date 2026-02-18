@@ -1,27 +1,24 @@
 package com.linakis.capacitorpicanetworklogger
 
-import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 
-class InspectorActivity : Activity() {
+class InspectorActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val targetClassName = "com.linakis.capacitorpicanetworklogger.kmp.InspectorActivity"
-        val targetClass = runCatching { Class.forName(targetClassName) }.getOrNull()
-
-        if (targetClass != null) {
-            try {
-                startActivity(android.content.Intent(this, targetClass))
-                finish()
-                return
-            } catch (err: Exception) {
-                // Fall through to fallback UI
-            }
+        setContent {
+            InspectorScreen(
+                repository = LogRepositoryStore.getRepository(),
+                shareText = { _, text ->
+                    val intent = Intent(Intent.ACTION_SEND)
+                    intent.type = "text/plain"
+                    intent.putExtra(Intent.EXTRA_TEXT, text)
+                    startActivity(Intent.createChooser(intent, "Share"))
+                },
+                onClose = { finish() }
+            )
         }
-
-        val fallback = TextView(this)
-        fallback.text = "Inspector UI not available."
-        setContentView(fallback)
     }
 }

@@ -1,20 +1,14 @@
 import Foundation
-#if canImport(PicaNetworkLoggerShared)
-import PicaNetworkLoggerShared
-import UserNotifications
-#endif
 
 class InspectorLogger {
     static let shared = InspectorLogger()
-    #if canImport(PicaNetworkLoggerShared)
-    private let repository = LogRepository()
+    private let repository = LogRepository.shared
     private var maxBodySize: Int = 131072
     private var redactHeaders: Set<String> = ["authorization", "cookie"]
     private var redactJsonFields: Set<String> = ["password", "token"]
     private var notifyEnabled: Bool = true
     private var requestMethods: [String: String] = [:]
     private var requestUrls: [String: String] = [:]
-    #endif
 
     func logStart(request: URLRequest) -> String {
         let id = request.value(forHTTPHeaderField: "X-Cap-ReqId") ?? UUID().uuidString
@@ -25,10 +19,8 @@ class InspectorLogger {
             "startTs": Int64(Date().timeIntervalSince1970 * 1000)
         ]
 
-        #if canImport(PicaNetworkLoggerShared)
         requestMethods[id] = data["method"] as? String ?? ""
         requestUrls[id] = data["url"] as? String ?? ""
-        #endif
 
         if let headers = request.allHTTPHeaderFields {
             data["headers"] = redact(headers)
@@ -40,18 +32,14 @@ class InspectorLogger {
             data["requestBodyTruncated"] = truncated.truncated
         }
 
-        #if canImport(PicaNetworkLoggerShared)
         repository.startRequest(data)
-        #endif
         return id
     }
 
     func logFinish(id: String, response: HTTPURLResponse?, data: Data?, error: Error?, protocol proto: String? = nil) {
         var payload: [String: Any] = ["id": id]
-        #if canImport(PicaNetworkLoggerShared)
         payload["method"] = requestMethods[id] ?? ""
         payload["url"] = requestUrls[id] ?? ""
-        #endif
         if let response = response {
             payload["status"] = response.statusCode
             payload["headers"] = redact(response.allHeaderFields)
@@ -68,58 +56,41 @@ class InspectorLogger {
             payload["protocol"] = proto
         }
         payload["ssl"] = (payload["url"] as? String)?.hasPrefix("https") == true
-        #if canImport(PicaNetworkLoggerShared)
         repository.finishRequest(payload)
-        #endif
 
-        #if canImport(PicaNetworkLoggerShared)
         requestMethods.removeValue(forKey: id)
         requestUrls.removeValue(forKey: id)
-        #endif
 
-        #if canImport(PicaNetworkLoggerShared)
         if notifyEnabled {
             let method = payload["method"] as? String ?? ""
             let url = payload["url"] as? String ?? ""
             let status = payload["status"] as? Int
             InspectorNotifications.show(method: method, url: url, status: status)
         }
-        #endif
     }
 
     func setMaxBodySize(_ size: Int) {
-        #if canImport(PicaNetworkLoggerShared)
         maxBodySize = size
-        #endif
     }
 
     func setRedaction(headers: [String], jsonFields: [String]) {
-        #if canImport(PicaNetworkLoggerShared)
         redactHeaders = Set(headers.map { $0.lowercased() })
         redactJsonFields = Set(jsonFields.map { $0.lowercased() })
-        #endif
     }
 
     func setNotify(enabled: Bool) {
-        #if canImport(PicaNetworkLoggerShared)
         notifyEnabled = enabled
-        #endif
     }
 
     private func truncate(_ value: String) -> (value: String, truncated: Bool) {
-        #if canImport(PicaNetworkLoggerShared)
         if value.count <= maxBodySize {
             return (value, false)
         }
         let index = value.index(value.startIndex, offsetBy: maxBodySize)
         return (String(value[..<index]), true)
-        #else
-        return (value, false)
-        #endif
     }
 
     private func redact(_ headers: [AnyHashable: Any]) -> [AnyHashable: Any] {
-        #if canImport(PicaNetworkLoggerShared)
         var output: [AnyHashable: Any] = headers
         for (key, value) in headers {
             if let keyString = (key as? String)?.lowercased(), redactHeaders.contains(keyString) {
@@ -129,13 +100,9 @@ class InspectorLogger {
             }
         }
         return output
-        #else
-        return headers
-        #endif
     }
 
     private func redact(_ headers: [String: String]) -> [String: String] {
-        #if canImport(PicaNetworkLoggerShared)
         var output = headers
         for (key, value) in headers {
             if redactHeaders.contains(key.lowercased()) {
@@ -145,13 +112,9 @@ class InspectorLogger {
             }
         }
         return output
-        #else
-        return headers
-        #endif
     }
 
     private func redactJson(_ value: String) -> String {
-        #if canImport(PicaNetworkLoggerShared)
         guard let data = value.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data, options: []),
               var json = object as? [String: Any] else {
@@ -166,8 +129,5 @@ class InspectorLogger {
             return value
         }
         return String(data: out, encoding: .utf8) ?? value
-        #else
-        return value
-        #endif
     }
 }

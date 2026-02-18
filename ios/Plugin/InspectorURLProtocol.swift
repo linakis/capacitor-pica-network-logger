@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(PicaNetworkLoggerShared)
-import PicaNetworkLoggerShared
-#endif
 
 class InspectorURLProtocol: URLProtocol, URLSessionDataDelegate {
     private static let handledKey = "CapHttpInspectorHandled"
@@ -26,9 +23,7 @@ class InspectorURLProtocol: URLProtocol, URLSessionDataDelegate {
     override func startLoading() {
         guard let client = client else { return }
 
-        #if canImport(PicaNetworkLoggerShared)
         requestId = InspectorLogger.shared.logStart(request: request)
-        #endif
 
         let mutableRequest = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
         URLProtocol.setProperty(true, forKey: InspectorURLProtocol.handledKey, in: mutableRequest)
@@ -61,14 +56,10 @@ class InspectorURLProtocol: URLProtocol, URLSessionDataDelegate {
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
-            #if canImport(PicaNetworkLoggerShared)
             InspectorLogger.shared.logFinish(id: requestId, response: receivedResponse, data: receivedData, error: error, protocol: negotiatedProtocol)
-            #endif
             client?.urlProtocol(self, didFailWithError: error)
         } else {
-            #if canImport(PicaNetworkLoggerShared)
             InspectorLogger.shared.logFinish(id: requestId, response: receivedResponse, data: receivedData, error: nil, protocol: negotiatedProtocol)
-            #endif
             client?.urlProtocolDidFinishLoading(self)
         }
     }

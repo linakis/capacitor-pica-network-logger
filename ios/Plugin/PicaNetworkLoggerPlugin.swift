@@ -1,9 +1,7 @@
 import Foundation
 #if canImport(Capacitor)
 import Capacitor
-#if canImport(PicaNetworkLoggerShared)
-import PicaNetworkLoggerShared
-#endif
+import UIKit
 
 @objc(PicaNetworkLoggerPlugin)
 public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -20,7 +18,7 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "showNotification", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestNotificationPermission", returnType: CAPPluginReturnPromise)
     ]
-    private let repository = LogRepository()
+    private let repository = LogRepository.shared
     private let configProvider = LoggerConfigProvider()
 
     @objc func startRequest(_ call: CAPPluginCall) {
@@ -79,9 +77,9 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func openInspector(_ call: CAPPluginCall) {
-        #if canImport(PicaNetworkLoggerShared)
+        #if canImport(UIKit)
         DispatchQueue.main.async { [weak self] in
-            let inspector = InspectorViewController()
+            let inspector = UINavigationController(rootViewController: InspectorViewController())
             inspector.modalPresentationStyle = .fullScreen
             if let root = self?.bridge?.viewController {
                 root.present(inspector, animated: true)

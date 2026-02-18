@@ -1,11 +1,13 @@
 import Foundation
 #if canImport(UserNotifications)
 import UserNotifications
+#endif
 
-class InspectorNotifications: NSObject, UNUserNotificationCenterDelegate {
+class InspectorNotifications: NSObject {
     static let shared = InspectorNotifications()
 
     static func show(method: String, url: String, status: Int?) {
+        #if canImport(UserNotifications)
         let center = UNUserNotificationCenter.current()
         center.delegate = shared
         let content = UNMutableNotificationContent()
@@ -37,8 +39,12 @@ class InspectorNotifications: NSObject, UNUserNotificationCenterDelegate {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(identifier: "cap_http_inspector", content: content, trigger: trigger)
         center.add(request, withCompletionHandler: nil)
+        #endif
     }
+}
 
+#if canImport(UserNotifications)
+extension InspectorNotifications: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([])
     }

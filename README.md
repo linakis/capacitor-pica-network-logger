@@ -4,13 +4,11 @@
 
 # capacitor-pica-network-logger
 
-Capacitor HTTP inspector with debug-only native capture, a KMP Compose viewer, and JS wrapper that mirrors `@capacitor/http`.
+Capacitor HTTP inspector with debug-only native capture and a JS wrapper that mirrors `@capacitor/http`.
 
 ## Tech stack
 
 - Capacitor 7
-- Kotlin Multiplatform + Compose Multiplatform
-- SQLDelight
 - Swift (URLProtocol logging on iOS)
 - Kotlin (HttpURLConnection reflection logging on Android)
 - TypeScript wrapper for `@capacitor/http`
@@ -18,7 +16,7 @@ Capacitor HTTP inspector with debug-only native capture, a KMP Compose viewer, a
 ## Features
 
 - Debug-only request/response logging
-- KMP inspector UI (standalone Activity/UIViewController)
+- Native inspector UI (standalone Activity/UIViewController)
 - Notifications to open inspector
 - Redaction + max body size from Capacitor config
 - cURL/JSON/HAR exports + copy/share
@@ -30,7 +28,6 @@ Capacitor HTTP inspector with debug-only native capture, a KMP Compose viewer, a
 - `src/`: JS wrapper and plugin typings
 - `android/`: Capacitor Android plugin + reflection hook
 - `ios/`: Capacitor iOS plugin + URLProtocol logger
-- `kmp/`: KMP shared UI + SQLDelight schema
 - `examples/sample-app/`: demo app
 
 ## Installation
@@ -126,13 +123,6 @@ npm install
 npm run build
 ```
 
-KMP module:
-
-```bash
-cd kmp
-./gradlew :shared:build
-```
-
 ## Sample app
 
 ```bash
@@ -146,8 +136,8 @@ npm run dev
 - JS wrapper: `src/httpWithLogging.ts`
 - Android hook: `android/src/main/java/com/linakis/capacitorpicanetworklogger/ReflectionHook.kt`
 - iOS logger: `ios/Plugin/InspectorURLProtocol.swift`
-- UI: `kmp/shared/src/commonMain/kotlin/com/linakis/capacitorpicanetworklogger/kmp/InspectorScreen.kt`
-- DB schema: `kmp/shared/src/commonMain/sqldelight/com/linakis/capacitorpicanetworklogger/kmp/db/InspectorDatabase.sq`
+- UI (iOS): `ios/Plugin/InspectorViewController.swift`
+- UI (Android): `android/src/main/java/com/linakis/capacitorpicanetworklogger/InspectorActivity.kt`
 
 ## Notes
 

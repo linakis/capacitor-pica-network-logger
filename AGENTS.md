@@ -7,7 +7,7 @@ Follow project conventions and keep changes minimal, focused, and consistent.
 - Capacitor plugin that wraps @capacitor/http with logging.
 - Native iOS plugin (Swift) with URLProtocol-based logging.
 - Native Android plugin (Kotlin) with inspector activity + notifications.
-- KMP shared module with Compose UI and SQLDelight database.
+- Native inspector UI on iOS (Swift) and Android (Kotlin).
 - Sample app in examples/sample-app/ for manual testing.
 
 ## Commands
@@ -18,18 +18,12 @@ Follow project conventions and keep changes minimal, focused, and consistent.
 - Clean: `npm run clean`
 
 Notes
-- The root package.json only includes TypeScript build/clean.
-- There is no lint or unit test script configured at the root.
-
-### KMP / Gradle (kmp/)
-- Build KMP shared module: `cd kmp && ./gradlew :shared:build`
-- Compile iOS frameworks: `cd kmp && ./gradlew :shared:podPublishReleaseXCFramework`
-- Clean: `cd kmp && ./gradlew clean`
+- NPM publish must be done manually due to OTP/2FA requirements.
+- To publish from a terminal: `npm publish` (or `npm publish --otp <code>` if prompted).
 
 Notes
-- Kotlin and Gradle versions are set in `kmp/build.gradle.kts`.
-- If you add tests, standard tasks are `:shared:test` and `:shared:iosX64Test`.
-- There are no test tasks currently wired in CI.
+- The root package.json only includes TypeScript build/clean.
+- There is no lint or unit test script configured at the root.
 
 ### Sample app (examples/sample-app/)
 - Install: `cd examples/sample-app && npm install`
@@ -72,18 +66,9 @@ Notes
 - Prefer `let` over `var` unless mutation is necessary.
 - Naming: classes/structs PascalCase, methods/properties camelCase.
 
-### Kotlin (kmp/shared/)
-- Keep common code platform-agnostic; avoid platform-only APIs in commonMain.
-- Use `kotlinx.serialization` for JSON; do not use `org.json`.
-- Compose UI: prefer small composables; keep state in the screen layer.
-- Use immutable data classes and avoid nullable types unless needed.
-- Favor `val` and data classes for model types.
-- Use `when` for status/method mapping for clarity.
-- Naming: classes/objects PascalCase, functions/properties camelCase.
-
 ### Android (android/)
 - Keep plugin behavior guarded and non-invasive; do not crash if optional APIs are unavailable.
-- Avoid Android-only APIs in shared KMP code.
+
 
 ## Formatting and imports
 
@@ -115,9 +100,8 @@ Notes
 
 ## Repo-specific notes
 - The root podspec is `CapacitorPicaNetworkLogger.podspec`.
-- The KMP CocoaPods framework is named `PicaNetworkLoggerShared`.
 - The sample app references the plugin via `file:../../`.
-- For URL logging on iOS, use `InspectorURLProtocol` and the shared logger.
+- For URL logging on iOS, use `InspectorURLProtocol` and the logger.
 - IMPORTANT: Store verification artifacts (screenshots, logs, recordings) in `tmp/` at the repo root.
 
 ## Cursor/Copilot rules

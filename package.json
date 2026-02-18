@@ -1,6 +1,6 @@
 {
   "name": "capacitor-pica-network-logger",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Capacitor HTTP network logger with debug-only native capture",
   "license": "MIT",
   "repository": {
@@ -20,9 +20,6 @@
     "!android/**/.gradle/**",
     "!android/**/build/**",
     "ios",
-    "kmp/**",
-    "!kmp/**/.gradle/**",
-    "!kmp/**/build/**",
     "CapacitorPicaNetworkLogger.podspec"
   ],
   "capacitor": {

@@ -1,4 +1,4 @@
-package com.linakis.capacitorpicanetworklogger.kmp
+package com.linakis.capacitorpicanetworklogger
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,29 +10,39 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -40,19 +50,12 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,22 +63,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InspectorScreen(
-    repository: InspectorRepository? = null,
+    repository: LogRepository? = null,
     shareText: ((title: String, text: String) -> Unit)? = null,
-    saveText: ((fileName: String, text: String) -> Unit)? = null,
-    colorSchemeProvider: ((Boolean) -> ColorScheme?)? = null,
     onThemeChange: ((Boolean) -> Unit)? = null,
     onClose: (() -> Unit)? = null
 ) {
@@ -86,8 +92,6 @@ fun InspectorScreen(
         InspectorScreenContent(
             repository = repository,
             shareText = shareText,
-            saveText = saveText,
-            colorSchemeProvider = colorSchemeProvider,
             onThemeChange = onThemeChange,
             onClose = onClose,
             isCompact = isCompact,
@@ -96,50 +100,53 @@ fun InspectorScreen(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+// ---------------------------------------------------------------------------
+// Main content
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InspectorScreenContent(
-    repository: InspectorRepository?,
+    repository: LogRepository?,
     shareText: ((title: String, text: String) -> Unit)?,
-    saveText: ((fileName: String, text: String) -> Unit)?,
-    colorSchemeProvider: ((Boolean) -> ColorScheme?)?,
     onThemeChange: ((Boolean) -> Unit)?,
     onClose: (() -> Unit)?,
     isCompact: Boolean,
     isExpanded: Boolean
 ) {
     var page by remember { mutableStateOf(InspectorPage.LIST) }
-    var selected by remember { mutableStateOf<LogDetail?>(null) }
+    var selected by remember { mutableStateOf<LogEntry?>(null) }
     var filter by remember { mutableStateOf("") }
     var showShareSheet by remember { mutableStateOf(false) }
-    var refreshKey by remember { mutableStateOf(0) }
+    var refreshKey by remember { mutableIntStateOf(0) }
     val isSystemDark = isSystemInDarkTheme()
     var isDark by remember(isSystemDark) { mutableStateOf(isSystemDark) }
 
-    SideEffect {
-        onThemeChange?.invoke(isDark)
-    }
-
+    SideEffect { onThemeChange?.invoke(isDark) }
 
     val contentPadding = if (isCompact) 12.dp else 16.dp
     val outerPadding = if (isExpanded) 24.dp else contentPadding
 
     val items = remember(repository, refreshKey) {
-        repository?.getLogs()?.map { it.toLogItem() } ?: emptyList()
+        repository?.getEntries() ?: emptyList()
     }
-    val filtered = items.filter { item ->
+    val filtered = items.filter { entry ->
         filter.length < 3 ||
-            item.url.contains(filter, ignoreCase = true) ||
-            item.host.contains(filter, ignoreCase = true) ||
-            item.method.contains(filter, ignoreCase = true)
+            entry.url.contains(filter, ignoreCase = true) ||
+            (entry.host?.contains(filter, ignoreCase = true) == true) ||
+            entry.method.contains(filter, ignoreCase = true)
     }
 
-    AppTheme(isDark = isDark, colorSchemeProvider = colorSchemeProvider) {
+    AppTheme(isDark = isDark) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom).asPaddingValues())
+                    .padding(
+                        WindowInsets.safeDrawing
+                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                            .asPaddingValues()
+                    )
             ) {
                 TopBar(
                     title = if (isCompact && page == InspectorPage.DETAIL) "Transaction" else "Network Inspector",
@@ -160,21 +167,25 @@ private fun InspectorScreenContent(
                         }
                     }
                 )
-                val selectedDetail = selected
-                if (showShareSheet && selectedDetail != null) {
+
+                val sel = selected
+                if (showShareSheet && sel != null) {
                     ModalBottomSheet(onDismissRequest = { showShareSheet = false }) {
                         ShareSheetContent(
-                            detail = selectedDetail,
+                            entry = sel,
                             onDismiss = { showShareSheet = false },
                             shareText = shareText
                         )
                     }
                 }
+
                 if (isCompact && page == InspectorPage.DETAIL) {
                     TransactionDetail(
-                        selected = selected,
+                        entry = selected,
                         shareText = shareText,
-                        modifier = Modifier.fillMaxSize().padding(horizontal = contentPadding)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = contentPadding)
                     )
                 } else {
                     FilterRow(
@@ -186,15 +197,19 @@ private fun InspectorScreenContent(
                     if (isCompact) {
                         TransactionList(
                             items = filtered,
-                            onSelect = { id ->
-                                selected = repository?.getLog(id)?.toLogDetail()
+                            onSelect = { entry ->
+                                selected = entry
                                 page = InspectorPage.DETAIL
                             },
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = contentPadding
                         )
                     } else {
-                        Box(modifier = Modifier.fillMaxSize().padding(horizontal = outerPadding)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = outerPadding)
+                        ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -202,16 +217,19 @@ private fun InspectorScreenContent(
                             ) {
                                 TransactionList(
                                     items = filtered,
-                                    onSelect = { id ->
-                                        selected = repository?.getLog(id)?.toLogDetail()
-                                    },
-                                    modifier = Modifier.weight(if (isExpanded) 0.38f else 0.45f).fillMaxSize(),
+                                    onSelect = { entry -> selected = entry },
+                                    modifier = Modifier
+                                        .weight(if (isExpanded) 0.38f else 0.45f)
+                                        .fillMaxSize(),
                                     contentPadding = contentPadding
                                 )
                                 TransactionDetail(
-                                    selected = selected,
+                                    entry = selected,
                                     shareText = shareText,
-                                    modifier = Modifier.weight(if (isExpanded) 0.62f else 0.55f).fillMaxSize().padding(start = contentPadding)
+                                    modifier = Modifier
+                                        .weight(if (isExpanded) 0.62f else 0.55f)
+                                        .fillMaxSize()
+                                        .padding(start = contentPadding)
                                 )
                             }
                         }
@@ -222,13 +240,13 @@ private fun InspectorScreenContent(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------------
+
 @Composable
-private fun AppTheme(
-    isDark: Boolean,
-    colorSchemeProvider: ((Boolean) -> ColorScheme?)?,
-    content: @Composable () -> Unit
-) {
-    val darkScheme = androidx.compose.material3.darkColorScheme(
+private fun AppTheme(isDark: Boolean, content: @Composable () -> Unit) {
+    val darkScheme = darkColorScheme(
         primary = Color(0xFF88D5C2),
         onPrimary = Color(0xFF0C1413),
         primaryContainer = Color(0xFF1E3A34),
@@ -248,7 +266,7 @@ private fun AppTheme(
         outline = Color(0xFF4A5258),
         outlineVariant = Color(0xFF2C3237)
     )
-    val lightScheme = androidx.compose.material3.lightColorScheme(
+    val lightScheme = lightColorScheme(
         primary = Color(0xFF2E6D5E),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFBCECE0),
@@ -276,15 +294,22 @@ private fun AppTheme(
         bodySmall = TextStyle(fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp),
         labelSmall = TextStyle(fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp)
     )
-    val scheme = colorSchemeProvider?.invoke(isDark) ?: if (isDark) darkScheme else lightScheme
-    androidx.compose.material3.MaterialTheme(colorScheme = scheme, typography = typography, content = content)
+    val scheme = if (isDark) darkScheme else lightScheme
+    MaterialTheme(colorScheme = scheme, typography = typography, content = content)
 }
 
-private enum class InspectorPage { LIST, DETAIL }
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
 
+private enum class InspectorPage { LIST, DETAIL }
 private enum class TopBarMode { LIST, DETAIL }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+// ---------------------------------------------------------------------------
+// Top bar
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
     title: String,
@@ -302,7 +327,7 @@ private fun TopBar(
         navigationIcon = {
             if (showBack) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             } else if (onClose != null) {
                 IconButton(onClick = onClose) {
@@ -338,6 +363,10 @@ private fun TopBar(
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
+// ---------------------------------------------------------------------------
+// Filter
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun FilterRow(
     value: String,
@@ -362,34 +391,66 @@ private fun FilterRow(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Transaction list
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun TransactionList(
-    items: List<LogItem>,
-    onSelect: (String) -> Unit,
+    items: List<LogEntry>,
+    onSelect: (LogEntry) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: androidx.compose.ui.unit.Dp
 ) {
     LazyColumn(modifier = modifier.padding(horizontal = contentPadding)) {
-        items(items) { item ->
+        items(items, key = { it.id }) { entry ->
+            val path = entry.path ?: runCatching { java.net.URI(entry.url).path }.getOrNull().orEmpty()
+            val host = entry.host ?: runCatching { java.net.URI(entry.url).host }.getOrNull().orEmpty()
             Card(
                 modifier = Modifier
                     .padding(bottom = 12.dp)
                     .fillMaxWidth()
-                    .clickable { onSelect(item.id) },
+                    .clickable { onSelect(entry) },
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        StatusChip(status = item.status)
-                        MethodChip(method = item.method)
-                        Text(item.path, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusChip(status = entry.resStatus)
+                        MethodChip(method = entry.method)
+                        Text(
+                            text = path.ifBlank { entry.url },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    Text(item.host, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(modifier = Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(formatTime(item.startTs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${item.durationMs ?: 0} ms", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatSize(item.sizeBytes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = host,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            formatTime(entry.startTs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "${entry.durationMs ?: 0} ms",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            formatSize(entry.resBody?.length ?: 0),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -397,24 +458,28 @@ private fun TransactionList(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Transaction detail
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun TransactionDetail(
-    selected: LogDetail?,
-    shareText: ((title: String, text: String) -> Unit)?,
+    entry: LogEntry?,
+    @Suppress("UNUSED_PARAMETER") shareText: ((title: String, text: String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    if (selected == null) {
+    if (entry == null) {
         Text("No selection", modifier = modifier.padding(12.dp))
         return
     }
-    var tab by remember { mutableStateOf(0) }
+    var tab by remember { mutableIntStateOf(0) }
     Column(
         modifier = modifier
             .padding(12.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Spacer(modifier = Modifier.height(8.dp))
-        OverviewSection(selected)
+        OverviewSection(entry)
         Spacer(modifier = Modifier.height(12.dp))
         TabRow(
             selectedTabIndex = tab,
@@ -426,45 +491,41 @@ private fun TransactionDetail(
         }
         Spacer(modifier = Modifier.height(8.dp))
         when (tab) {
-            0 -> RequestTab(detail = selected)
-            1 -> ResponseTab(detail = selected)
+            0 -> RequestTab(entry = entry)
+            1 -> ResponseTab(entry = entry)
         }
     }
 }
 
 @Composable
-private fun OverviewSection(detail: LogDetail) {
+private fun OverviewSection(entry: LogEntry) {
     Column {
-        KeyValueRow("URL", detail.url)
-        KeyValueRow("Status", detail.status?.toString() ?: "-")
-        KeyValueRow("Duration", "${detail.durationMs ?: 0} ms")
-        KeyValueRow("Size", formatSize(detail.resBody?.length ?: 0))
-        KeyValueRow("Started", formatTime(detail.startTs))
-        KeyValueRow("Protocol", detail.protocol ?: "-")
-        KeyValueRow("SSL", if (detail.ssl) "Yes" else "No")
+        KeyValueRow("URL", entry.url)
+        KeyValueRow("Status", entry.resStatus?.toString() ?: "-")
+        KeyValueRow("Duration", "${entry.durationMs ?: 0} ms")
+        KeyValueRow("Size", formatSize(entry.resBody?.length ?: 0))
+        KeyValueRow("Started", formatTime(entry.startTs))
+        KeyValueRow("Protocol", entry.protocol ?: "-")
+        KeyValueRow("SSL", if (entry.ssl) "Yes" else "No")
     }
 }
 
 @Composable
-private fun RequestTab(
-    detail: LogDetail
-) {
-    val headers = formatHeaders(detail.reqHeadersJson)
-    val body = formatBody(detail.reqBody)
+private fun RequestTab(entry: LogEntry) {
+    val headers = parseHeaders(entry.reqHeadersJson)
+    val body = formatBody(entry.reqBody)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionCard(title = "Request Headers", body = headers)
+        HeadersSectionCard(title = "Request Headers", headers = headers)
         SectionCard(title = "Request Body", body = body)
     }
 }
 
 @Composable
-private fun ResponseTab(
-    detail: LogDetail
-) {
-    val headers = formatHeaders(detail.resHeadersJson)
-    val body = formatBody(detail.resBody)
+private fun ResponseTab(entry: LogEntry) {
+    val headers = parseHeaders(entry.resHeadersJson)
+    val body = formatBody(entry.resBody)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionCard(title = "Response Headers", body = headers)
+        HeadersSectionCard(title = "Response Headers", headers = headers)
         SectionCard(title = "Response Body", body = body)
     }
 }
@@ -491,21 +552,60 @@ private fun SectionCard(title: String, body: String) {
     }
 }
 
+@Composable
+private fun HeadersSectionCard(title: String, headers: Map<String, String>) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                if (headers.isEmpty()) {
+                    Text("-", color = MaterialTheme.colorScheme.onSurface)
+                } else {
+                    val annotated = buildAnnotatedString {
+                        headers.entries.forEachIndexed { index, (key, value) ->
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                append(key)
+                            }
+                            append(": $value")
+                            if (index < headers.size - 1) append("\n")
+                        }
+                    }
+                    Text(annotated, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+}
 
+// ---------------------------------------------------------------------------
+// Share sheet
+// ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShareSheetContent(
-    detail: LogDetail,
+    entry: LogEntry,
     onDismiss: () -> Unit,
     shareText: ((title: String, text: String) -> Unit)?
 ) {
-    val title = "${detail.method} ${detail.path}"
+    val path = entry.path ?: runCatching { java.net.URI(entry.url).path }.getOrNull().orEmpty()
+    val title = "${entry.method} $path"
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         ShareSheetItem(
             icon = Icons.Filled.Code,
             label = "Share cURL",
             onClick = {
-                shareText?.invoke(title, detail.toCurl())
+                shareText?.invoke(title, buildCurl(entry))
                 onDismiss()
             }
         )
@@ -513,7 +613,7 @@ private fun ShareSheetContent(
             icon = Icons.Filled.Description,
             label = "Share txt",
             onClick = {
-                shareText?.invoke(title, detail.toShareText())
+                shareText?.invoke(title, buildShareText(entry))
                 onDismiss()
             }
         )
@@ -521,7 +621,7 @@ private fun ShareSheetContent(
             icon = Icons.Filled.Inventory,
             label = "Share HAR",
             onClick = {
-                shareText?.invoke(title, detail.toHar())
+                shareText?.invoke(title, buildHar(entry))
                 onDismiss()
             }
         )
@@ -530,7 +630,7 @@ private fun ShareSheetContent(
 }
 
 @Composable
-private fun ShareSheetItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ShareSheetItem(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -543,6 +643,10 @@ private fun ShareSheetItem(icon: androidx.compose.ui.graphics.vector.ImageVector
         Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Key-value row
+// ---------------------------------------------------------------------------
 
 @Composable
 private fun KeyValueRow(key: String, value: String) {
@@ -566,6 +670,10 @@ private fun KeyValueRow(key: String, value: String) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Chips
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun StatusChip(status: Long?) {
     val label = status?.toString() ?: "-"
@@ -577,13 +685,9 @@ private fun StatusChip(status: Long?) {
 @Composable
 private fun MethodChip(method: String) {
     val label = method.ifBlank { "-" }
-    val methodColor = methodColor(method)
-    val contentColor = if (methodColor.luminance() < 0.5f) Color.White else Color.Black
-    Chip(
-        label = label,
-        background = methodColor,
-        contentColor = contentColor
-    )
+    val mc = methodColor(method)
+    val contentColor = if (mc.luminance() < 0.5f) Color.White else Color.Black
+    Chip(label = label, background = mc, contentColor = contentColor)
 }
 
 @Composable
@@ -598,33 +702,37 @@ private fun Chip(label: String, background: Color, contentColor: Color) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Formatters
+// ---------------------------------------------------------------------------
+
 private fun formatTime(epochMillis: Long): String {
-    val seconds = epochMillis / 1000
-    val millis = epochMillis % 1000
-    val instant = kotlinx.datetime.Instant.fromEpochSeconds(seconds, millis.toInt() * 1_000_000)
-    return instant.toString().substringAfter('T').substringBefore('Z')
+    val date = java.util.Date(epochMillis)
+    val formatter = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault())
+    return formatter.format(date)
 }
 
 private fun formatSize(bytes: Int): String {
     if (bytes <= 0) return "-"
     val kb = bytes / 1024.0
     return if (kb < 1024) {
-        val rounded = (kb * 100).toLong() / 100.0
-        "$rounded KB"
+        String.format(java.util.Locale.getDefault(), "%.2f KB", kb)
     } else {
-        val mb = kb / 1024.0
-        val rounded = (mb * 100).toLong() / 100.0
-        "$rounded MB"
+        String.format(java.util.Locale.getDefault(), "%.2f MB", kb / 1024.0)
     }
 }
-
-private val prettyJson = Json { prettyPrint = true }
 
 private fun formatHeaders(headersJson: String?): String {
     if (headersJson.isNullOrBlank()) return ""
     return try {
-        val obj = Json.parseToJsonElement(headersJson).jsonObject
-        obj.entries.joinToString("\n") { "${it.key}: ${it.value.jsonPrimitive.content}" }
+        val obj = org.json.JSONObject(headersJson)
+        val keys = obj.keys()
+        val lines = mutableListOf<String>()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            lines.add("$key: ${obj.optString(key)}")
+        }
+        lines.joinToString("\n")
     } catch (_: Exception) {
         headersJson
     }
@@ -633,12 +741,148 @@ private fun formatHeaders(headersJson: String?): String {
 private fun formatBody(body: String?): String {
     if (body.isNullOrBlank()) return ""
     return try {
-        val element = Json.parseToJsonElement(body)
-        prettyJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), element)
+        when {
+            body.trim().startsWith("{") -> org.json.JSONObject(body).toString(2)
+            body.trim().startsWith("[") -> org.json.JSONArray(body).toString(2)
+            else -> body
+        }
     } catch (_: Exception) {
         body
     }
 }
+
+private fun parseHeaders(headersJson: String?): Map<String, String> {
+    if (headersJson.isNullOrBlank()) return emptyMap()
+    return try {
+        val obj = org.json.JSONObject(headersJson)
+        val keys = obj.keys()
+        val map = mutableMapOf<String, String>()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            map[key] = obj.optString(key)
+        }
+        map
+    } catch (_: Exception) {
+        emptyMap()
+    }
+}
+
+private fun escapeSingleQuotes(value: String): String {
+    return value.replace("'", "'\\''")
+}
+
+// ---------------------------------------------------------------------------
+// Share builders
+// ---------------------------------------------------------------------------
+
+private fun buildCurl(entry: LogEntry): String {
+    val method = entry.method.ifBlank { "GET" }
+    val parts = mutableListOf("curl -X $method '${entry.url}'")
+    parseHeaders(entry.reqHeadersJson).forEach { (key, value) ->
+        parts.add("-H '${escapeSingleQuotes("$key: $value")}'")
+    }
+    entry.reqBody?.let {
+        if (it.isNotBlank()) {
+            parts.add("--data '${escapeSingleQuotes(it)}'")
+        }
+    }
+    return parts.joinToString(" \\\n  ")
+}
+
+private fun buildShareText(entry: LogEntry): String {
+    val divider = "----------------------------------------"
+    val requestHeaders = formatHeaders(entry.reqHeadersJson)
+    val responseHeaders = formatHeaders(entry.resHeadersJson)
+    val requestBody = formatBody(entry.reqBody)
+    val responseBody = formatBody(entry.resBody)
+    return buildString {
+        append("URL\n")
+        append(entry.url)
+        append("\n")
+        append(divider)
+        append("\nRequest Headers\n")
+        append(requestHeaders.ifBlank { "-" })
+        append("\n")
+        append(divider)
+        append("\nRequest Body\n")
+        append(requestBody.ifBlank { "-" })
+        append("\n")
+        append(divider)
+        append("\nResponse Headers\n")
+        append(responseHeaders.ifBlank { "-" })
+        append("\n")
+        append(divider)
+        append("\nResponse Body\n")
+        append(responseBody.ifBlank { "-" })
+    }
+}
+
+private fun buildHar(entry: LogEntry): String {
+    val har = org.json.JSONObject()
+    val logObj = org.json.JSONObject()
+    logObj.put("version", "1.2")
+    logObj.put(
+        "creator", org.json.JSONObject()
+            .put("name", "capacitor-pica-network-logger")
+            .put("version", "0.1.0")
+    )
+    val entries = org.json.JSONArray()
+    val e = org.json.JSONObject()
+    e.put("startedDateTime", java.time.Instant.ofEpochMilli(entry.startTs).toString())
+    e.put("time", entry.durationMs ?: 0)
+    val request = org.json.JSONObject()
+        .put("method", entry.method)
+        .put("url", entry.url)
+        .put("httpVersion", "HTTP/1.1")
+        .put("headers", harHeaders(entry.reqHeadersJson))
+        .put("queryString", org.json.JSONArray())
+        .put("headersSize", -1)
+        .put("bodySize", entry.reqBody?.length ?: 0)
+        .put(
+            "postData", org.json.JSONObject()
+                .put("mimeType", "text/plain")
+                .put("text", entry.reqBody ?: "")
+        )
+    e.put("request", request)
+    val response = org.json.JSONObject()
+        .put("status", entry.resStatus ?: 0)
+        .put("statusText", "")
+        .put("httpVersion", "HTTP/1.1")
+        .put("headers", harHeaders(entry.resHeadersJson))
+        .put(
+            "content", org.json.JSONObject()
+                .put("size", entry.resBody?.length ?: 0)
+                .put("mimeType", "text/plain")
+                .put("text", entry.resBody ?: "")
+        )
+        .put("redirectURL", "")
+        .put("headersSize", -1)
+        .put("bodySize", entry.resBody?.length ?: 0)
+    e.put("response", response)
+    e.put("cache", org.json.JSONObject())
+    e.put(
+        "timings", org.json.JSONObject()
+            .put("send", 0)
+            .put("wait", entry.durationMs ?: 0)
+            .put("receive", 0)
+    )
+    entries.put(e)
+    logObj.put("entries", entries)
+    har.put("log", logObj)
+    return har.toString(2)
+}
+
+private fun harHeaders(headersJson: String?): org.json.JSONArray {
+    val array = org.json.JSONArray()
+    parseHeaders(headersJson).forEach { (key, value) ->
+        array.put(org.json.JSONObject().put("name", key).put("value", value))
+    }
+    return array
+}
+
+// ---------------------------------------------------------------------------
+// Colors
+// ---------------------------------------------------------------------------
 
 private fun statusColor(status: Long?): Color {
     return when (status) {
