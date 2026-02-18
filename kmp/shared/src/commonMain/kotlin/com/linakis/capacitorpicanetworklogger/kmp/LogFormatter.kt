@@ -2,6 +2,10 @@ package com.linakis.capacitorpicanetworklogger.kmp
 
 import com.linakis.capacitorpicanetworklogger.kmp.db.Http_logs
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 data class LogItem(
     val id: String,
@@ -323,17 +327,13 @@ private fun escapeJson(value: String): String {
     }
 }
 
+private val prettyJson = Json { prettyPrint = true }
+
 private fun headersJsonToMap(headersJson: String?): Map<String, String> {
     if (headersJson.isNullOrBlank()) return emptyMap()
     return try {
-        val obj = org.json.JSONObject(headersJson)
-        val keys = obj.keys()
-        val map = mutableMapOf<String, String>()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            map[key] = obj.get(key).toString()
-        }
-        map
+        val obj = Json.parseToJsonElement(headersJson).jsonObject
+        obj.entries.associate { (k, v) -> k to v.jsonPrimitive.content }
     } catch (_: Exception) {
         emptyMap()
     }
@@ -350,14 +350,8 @@ private fun formatHeadersForCurl(headersJson: String): String {
 private fun formatHeadersForShare(headersJson: String?): String {
     if (headersJson.isNullOrBlank()) return ""
     return try {
-        val obj = org.json.JSONObject(headersJson)
-        val keys = obj.keys()
-        val lines = mutableListOf<String>()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            lines.add("$key: ${obj.get(key)}")
-        }
-        lines.joinToString("\n")
+        val obj = Json.parseToJsonElement(headersJson).jsonObject
+        obj.entries.joinToString("\n") { "${it.key}: ${it.value.jsonPrimitive.content}" }
     } catch (_: Exception) {
         headersJson
     }
@@ -366,8 +360,8 @@ private fun formatHeadersForShare(headersJson: String?): String {
 private fun formatBodyForShare(body: String?): String {
     if (body.isNullOrBlank()) return ""
     return try {
-        val obj = org.json.JSONObject(body)
-        obj.toString(2)
+        val element = Json.parseToJsonElement(body)
+        prettyJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), element)
     } catch (_: Exception) {
         body
     }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,12 +60,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -76,9 +79,35 @@ fun InspectorScreen(
     onThemeChange: ((Boolean) -> Unit)? = null,
     onClose: (() -> Unit)? = null
 ) {
-    val screenWidth = LocalConfiguration.current.screenWidthDp
-    val isCompact = screenWidth < 600
-    val isExpanded = screenWidth >= 840
+    BoxWithConstraints {
+        val screenWidthDp = maxWidth
+        val isCompact = screenWidthDp < 600.dp
+        val isExpanded = screenWidthDp >= 840.dp
+        InspectorScreenContent(
+            repository = repository,
+            shareText = shareText,
+            saveText = saveText,
+            colorSchemeProvider = colorSchemeProvider,
+            onThemeChange = onThemeChange,
+            onClose = onClose,
+            isCompact = isCompact,
+            isExpanded = isExpanded
+        )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun InspectorScreenContent(
+    repository: InspectorRepository?,
+    shareText: ((title: String, text: String) -> Unit)?,
+    saveText: ((fileName: String, text: String) -> Unit)?,
+    colorSchemeProvider: ((Boolean) -> ColorScheme?)?,
+    onThemeChange: ((Boolean) -> Unit)?,
+    onClose: (() -> Unit)?,
+    isCompact: Boolean,
+    isExpanded: Boolean
+) {
     var page by remember { mutableStateOf(InspectorPage.LIST) }
     var selected by remember { mutableStateOf<LogDetail?>(null) }
     var filter by remember { mutableStateOf("") }
@@ -579,21 +608,23 @@ private fun formatTime(epochMillis: Long): String {
 private fun formatSize(bytes: Int): String {
     if (bytes <= 0) return "-"
     val kb = bytes / 1024.0
-    return if (kb < 1024) "%.2f KB".format(kb) else "%.2f MB".format(kb / 1024.0)
+    return if (kb < 1024) {
+        val rounded = (kb * 100).toLong() / 100.0
+        "$rounded KB"
+    } else {
+        val mb = kb / 1024.0
+        val rounded = (mb * 100).toLong() / 100.0
+        "$rounded MB"
+    }
 }
+
+private val prettyJson = Json { prettyPrint = true }
 
 private fun formatHeaders(headersJson: String?): String {
     if (headersJson.isNullOrBlank()) return ""
     return try {
-        val obj = org.json.JSONObject(headersJson)
-        val keys = obj.keys()
-        val lines = mutableListOf<String>()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = obj.get(key).toString()
-            lines.add("$key: $value")
-        }
-        lines.joinToString("\n")
+        val obj = Json.parseToJsonElement(headersJson).jsonObject
+        obj.entries.joinToString("\n") { "${it.key}: ${it.value.jsonPrimitive.content}" }
     } catch (_: Exception) {
         headersJson
     }
@@ -602,8 +633,8 @@ private fun formatHeaders(headersJson: String?): String {
 private fun formatBody(body: String?): String {
     if (body.isNullOrBlank()) return ""
     return try {
-        val obj = org.json.JSONObject(body)
-        obj.toString(2)
+        val element = Json.parseToJsonElement(body)
+        prettyJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), element)
     } catch (_: Exception) {
         body
     }

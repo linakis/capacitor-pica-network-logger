@@ -1,9 +1,25 @@
 import Foundation
 #if canImport(Capacitor)
 import Capacitor
+#if canImport(PicaNetworkLoggerShared)
+import PicaNetworkLoggerShared
+#endif
 
 @objc(PicaNetworkLoggerPlugin)
-public class PicaNetworkLoggerPlugin: CAPPlugin {
+public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PicaNetworkLoggerPlugin"
+    public let jsName = "PicaNetworkLogger"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "startRequest", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "finishRequest", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLogs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLog", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearLogs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getConfig", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openInspector", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "showNotification", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestNotificationPermission", returnType: CAPPluginReturnPromise)
+    ]
     private let repository = LogRepository()
     private let configProvider = LoggerConfigProvider()
 
@@ -12,12 +28,26 @@ public class PicaNetworkLoggerPlugin: CAPPlugin {
             call.reject("Missing id")
             return
         }
-        repository.startRequest(call.options)
+        if let options = call.options as? [AnyHashable: Any] {
+            let normalized = options.reduce(into: [String: Any]()) { dict, item in
+                if let key = item.key as? String {
+                    dict[key] = item.value
+                }
+            }
+            repository.startRequest(normalized)
+        }
         call.resolve(["id": id])
     }
 
     @objc func finishRequest(_ call: CAPPluginCall) {
-        repository.finishRequest(call.options)
+        if let options = call.options as? [AnyHashable: Any] {
+            let normalized = options.reduce(into: [String: Any]()) { dict, item in
+                if let key = item.key as? String {
+                    dict[key] = item.value
+                }
+            }
+            repository.finishRequest(normalized)
+        }
         call.resolve()
     }
 
@@ -49,17 +79,20 @@ public class PicaNetworkLoggerPlugin: CAPPlugin {
     }
 
     @objc func openInspector(_ call: CAPPluginCall) {
-        #if canImport(UIKit)
-        if let root = bridge?.viewController {
+        #if canImport(PicaNetworkLoggerShared)
+        DispatchQueue.main.async { [weak self] in
             let inspector = InspectorViewController()
-            root.present(inspector, animated: true)
+            inspector.modalPresentationStyle = .fullScreen
+            if let root = self?.bridge?.viewController {
+                root.present(inspector, animated: true)
+            }
         }
         #endif
         call.resolve()
     }
 
     @objc func showNotification(_ call: CAPPluginCall) {
-        InspectorNotifications.show()
+        InspectorNotifications.show(title: "", body: "")
         call.resolve()
     }
 

@@ -1,7 +1,9 @@
 plugins {
     kotlin("multiplatform")
+    kotlin("plugin.serialization")
     id("com.android.library")
     id("org.jetbrains.compose")
+    id("org.jetbrains.kotlin.native.cocoapods")
     id("app.cash.sqldelight")
 }
 
@@ -11,6 +13,19 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    applyDefaultHierarchyTemplate()
+
+    cocoapods {
+        name = "PicaNetworkLoggerShared"
+        version = "0.1.0"
+        summary = "Capacitor HTTP inspector shared UI"
+        homepage = "https://github.com/linakis/capacitor-pica-network-logger"
+        ios.deploymentTarget = "14.0"
+        framework {
+            baseName = "PicaNetworkLoggerShared"
+        }
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -19,6 +34,7 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
                 implementation("app.cash.sqldelight:runtime:2.0.2")
             }
         }
@@ -29,14 +45,11 @@ kotlin {
                 implementation("app.cash.sqldelight:android-driver:2.0.2")
             }
         }
-        val iosMain by creating {
+        val iosMain by getting {
             dependencies {
                 implementation("app.cash.sqldelight:native-driver:2.0.2")
             }
         }
-        val iosX64Main by getting { dependsOn(iosMain) }
-        val iosArm64Main by getting { dependsOn(iosMain) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
     }
 }
 

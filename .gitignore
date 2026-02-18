@@ -6,6 +6,12 @@ dist/
 .vscode/
 *.iml
 
+# JVM / Gradle artifacts
+*.hprof
+
+# macOS log archives
+*.logarchive/
+
 android/.gradle/
 android/build/
 android/.idea/

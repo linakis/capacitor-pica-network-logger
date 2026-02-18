@@ -1,15 +1,15 @@
 import Foundation
-#if canImport(shared)
-import shared
+#if canImport(PicaNetworkLoggerShared)
+import PicaNetworkLoggerShared
 #endif
 
 class LogRepository {
-    #if canImport(shared)
+    #if canImport(PicaNetworkLoggerShared)
     private lazy var repository = InspectorRepository(driverFactory: DatabaseDriverFactory(context: nil))
     #endif
 
     func startRequest(_ data: [String: Any]) {
-        #if canImport(shared)
+        #if canImport(PicaNetworkLoggerShared)
         guard let id = data["id"] as? String,
               let url = data["url"] as? String else { return }
         let method = (data["method"] as? String) ?? "GET"
@@ -38,7 +38,7 @@ class LogRepository {
     }
 
     func finishRequest(_ data: [String: Any]) {
-        #if canImport(shared)
+        #if canImport(PicaNetworkLoggerShared)
         guard let id = data["id"] as? String else { return }
         let duration = (data["durationMs"] as? NSNumber)?.int64Value
         let status = (data["status"] as? NSNumber)?.int64Value
@@ -52,8 +52,8 @@ class LogRepository {
 
         repository.updateFinish(
             id: id,
-            durationMs: duration == nil ? nil : NSNumber(value: duration!).int64Value,
-            status: status,
+            durationMs: duration.map { KotlinLong(value: $0) },
+            status: status.map { KotlinLong(value: $0) },
             resHeadersJson: jsonString(headers),
             resBody: resBody,
             resBodyTruncated: resBodyTruncated,
@@ -66,7 +66,7 @@ class LogRepository {
     }
 
     func getLogs() -> [[String: Any]] {
-        #if canImport(shared)
+        #if canImport(PicaNetworkLoggerShared)
         return repository.getLogs().map { log in
             [
                 "id": log.id,
@@ -98,7 +98,7 @@ class LogRepository {
     }
 
     func getLog(_ id: String?) -> [String: Any]? {
-        #if canImport(shared)
+        #if canImport(PicaNetworkLoggerShared)
         guard let id = id, let log = repository.getLog(id: id) else { return nil }
         return [
             "id": log.id,
@@ -129,7 +129,7 @@ class LogRepository {
     }
 
     func clear() {
-        #if canImport(shared)
+        #if canImport(PicaNetworkLoggerShared)
         repository.clear()
         #endif
     }

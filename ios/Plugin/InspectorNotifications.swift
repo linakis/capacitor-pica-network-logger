@@ -17,5 +17,9 @@ class InspectorNotifications: NSObject, UNUserNotificationCenterDelegate {
         let request = UNNotificationRequest(identifier: "cap_http_inspector", content: content, trigger: trigger)
         center.add(request, withCompletionHandler: nil)
     }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .badge])
+    }
 }
 #endif

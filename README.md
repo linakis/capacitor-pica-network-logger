@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assetes/capacitor-pica-logo.png" alt="Capacitor Pica Network Logger logo" width="240" />
+  <img src="assets/capacitor-pica-logo.png" alt="Capacitor Pica Network Logger logo" width="240" />
 </p>
 
 # capacitor-pica-network-logger
