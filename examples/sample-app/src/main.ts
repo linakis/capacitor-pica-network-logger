@@ -19,7 +19,6 @@ type RequestKind =
 
 const runRequest = async (kind: RequestKind) => {
   try {
-    await PicaNetworkLogger.requestNotificationPermission();
     let response;
 
     switch (kind) {
