@@ -33,6 +33,16 @@ Capacitor HTTP inspector with debug-only native capture, a KMP Compose viewer, a
 - `kmp/`: KMP shared UI + SQLDelight schema
 - `examples/sample-app/`: demo app
 
+## Installation
+
+```bash
+npm install capacitor-pica-network-logger
+```
+
+```bash
+npx cap sync
+```
+
 ## Configuration
 
 Add to your app's `capacitor.config.ts`:
