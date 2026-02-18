@@ -6,6 +6,8 @@
 
 Capacitor HTTP inspector with debug-only native capture and a JS wrapper that mirrors `@capacitor/http`.
 
+![Network logger walkthrough](assets/pica_network_logger.gif)
+
 ## Tech stack
 
 - Capacitor 7
