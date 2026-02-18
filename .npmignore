@@ -1,0 +1,8 @@
+android/.gradle/
+android/build/
+kmp/.gradle/
+kmp/build/
+kmp/shared/build/
+examples/
+node_modules/
+tmp/
