@@ -1,6 +1,6 @@
 {
   "name": "capacitor-pica-network-logger",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Capacitor HTTP network logger with debug-only native capture",
   "license": "MIT",
   "repository": {
