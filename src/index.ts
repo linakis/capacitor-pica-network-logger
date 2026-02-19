@@ -1,22 +1,20 @@
-import { registerPlugin } from '@capacitor/core';
-import type { LoggerConfig, RequestMeta, ResponseMeta } from './types';
-import { PicaNetworkLoggerWeb } from './web';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import type { FinishRequestOptions, StartRequestOptions } from './types';
 
 export interface PicaNetworkLoggerPlugin {
-  startRequest(options: RequestMeta): Promise<{ id: string }>;
-  finishRequest(options: ResponseMeta): Promise<void>;
-  getLogs(options?: { limit?: number; offset?: number }): Promise<{ logs: Record<string, unknown>[] }>; 
-  getLog(options: { id: string }): Promise<{ log?: Record<string, unknown> }>;
-  clearLogs(): Promise<void>;
-  getConfig(): Promise<LoggerConfig>;
+  startRequest(options: StartRequestOptions): Promise<{ id: string }>;
+  finishRequest(options: FinishRequestOptions): Promise<void>;
   openInspector(): Promise<void>;
-  showNotification(): Promise<void>;
-  requestNotificationPermission(): Promise<{ granted?: boolean } | void>;
 }
 
-export const PicaNetworkLogger = registerPlugin<PicaNetworkLoggerPlugin>('PicaNetworkLogger', {
-  web: () => new PicaNetworkLoggerWeb()
+const createNoop = (): PicaNetworkLoggerPlugin => ({
+  startRequest: async () => ({ id: '' }),
+  finishRequest: async () => undefined,
+  openInspector: async () => undefined
 });
 
-export * from './httpWithLogging';
-export * from './types';
+export const PicaNetworkLogger = Capacitor.isNativePlatform()
+  ? registerPlugin<PicaNetworkLoggerPlugin>('PicaNetworkLogger')
+  : createNoop();
+
+export type { FinishRequestOptions, StartRequestOptions } from './types';

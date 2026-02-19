@@ -74,6 +74,7 @@ class LogRepository {
         val notifyMethod = entry.method
         val notifyUrl = entry.url
         LogRepositoryStore.notify(notifyMethod, notifyUrl, status?.toInt())
+
     }
 
     fun getLogs(): List<JSObject> {

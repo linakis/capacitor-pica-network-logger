@@ -1,4 +1,4 @@
-import { CapacitorHttp, PicaNetworkLogger } from 'capacitor-pica-network-logger';
+import { PicaNetworkLogger } from 'capacitor-pica-network-logger';
 import './main.css';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -19,90 +19,119 @@ type RequestKind =
 
 const runRequest = async (kind: RequestKind) => {
   try {
-    let response;
+    const urlBase = 'https://jsonplaceholder.typicode.com';
+    const method = (() => {
+      switch (kind) {
+        case 'get-resource':
+        case 'list-resources':
+        case 'filter-resources':
+        case 'list-nested':
+          return 'GET';
+        case 'create-resource':
+          return 'POST';
+        case 'update-resource':
+          return 'PUT';
+        case 'patch-resource':
+          return 'PATCH';
+        case 'delete-resource':
+          return 'DELETE';
+        default:
+          return 'GET';
+      }
+    })();
 
-    switch (kind) {
-      case 'get-resource':
-        response = await CapacitorHttp.get({
-          url: 'https://jsonplaceholder.typicode.com/posts/1'
-        });
-        break;
-      case 'list-resources':
-        response = await CapacitorHttp.get({
-          url: 'https://jsonplaceholder.typicode.com/posts'
-        });
-        break;
-      case 'create-resource':
-        response = await CapacitorHttp.post({
-          url: 'https://jsonplaceholder.typicode.com/posts',
-          headers: {
-            'Content-type': 'application/json; charset=UTF-8'
-          },
-          data: {
-            title: 'foo',
-            body: 'bar',
-            userId: 1
-          }
-        });
-        break;
-      case 'update-resource':
-        response = await CapacitorHttp.put({
-          url: 'https://jsonplaceholder.typicode.com/posts/1',
-          headers: {
-            'Content-type': 'application/json; charset=UTF-8'
-          },
-          data: {
-            id: 1,
-            title: 'foo',
-            body: 'bar',
-            userId: 1
-          }
-        });
-        break;
-      case 'patch-resource':
-        response = await CapacitorHttp.patch({
-          url: 'https://jsonplaceholder.typicode.com/posts/1',
-          headers: {
-            'Content-type': 'application/json; charset=UTF-8'
-          },
-          data: {
-            title: 'foo'
-          }
-        });
-        break;
-      case 'delete-resource':
-        response = await CapacitorHttp.delete({
-          url: 'https://jsonplaceholder.typicode.com/posts/1'
-        });
-        break;
-      case 'filter-resources':
-        response = await CapacitorHttp.get({
-          url: 'https://jsonplaceholder.typicode.com/posts',
-          params: {
-            userId: '1'
-          }
-        });
-        break;
-      case 'list-nested':
-        response = await CapacitorHttp.get({
-          url: 'https://jsonplaceholder.typicode.com/posts/1/comments'
-        });
-        break;
-      default:
-        throw new Error(`Unknown request kind: ${kind}`);
-    }
+    const request = (() => {
+      switch (kind) {
+        case 'get-resource':
+          return { url: `${urlBase}/posts/1` };
+        case 'list-resources':
+          return { url: `${urlBase}/posts` };
+        case 'create-resource':
+          return {
+            url: `${urlBase}/posts`,
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8'
+            },
+            body: {
+              title: 'foo',
+              body: 'bar',
+              userId: 1
+            }
+          };
+        case 'update-resource':
+          return {
+            url: `${urlBase}/posts/1`,
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8'
+            },
+            body: {
+              id: 1,
+              title: 'foo',
+              body: 'bar',
+              userId: 1
+            }
+          };
+        case 'patch-resource':
+          return {
+            url: `${urlBase}/posts/1`,
+            headers: {
+              'Content-type': 'application/json; charset=UTF-8'
+            },
+            body: {
+              title: 'foo'
+            }
+          };
+        case 'delete-resource':
+          return { url: `${urlBase}/posts/1` };
+        case 'filter-resources':
+          return { url: `${urlBase}/posts?userId=1` };
+        case 'list-nested':
+          return { url: `${urlBase}/posts/1/comments` };
+        default:
+          throw new Error(`Unknown request kind: ${kind}`);
+      }
+    })();
 
-    const output = response?.data ?? response;
-    updateOutput(JSON.stringify(output, null, 2));
+    const serializeBody = (value: unknown) => {
+      if (value == null) return null;
+      if (typeof value === 'string') return value;
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    };
+
+    const start = await PicaNetworkLogger.startRequest({
+      method,
+      url: request.url,
+      headers: request.headers,
+      body: serializeBody(request.body)
+    });
+
+    const response = await fetch(request.url, {
+      method,
+      headers: request.headers,
+      body: request.body ? JSON.stringify(request.body) : undefined
+    });
+
+    const responseBody = await response.json().catch(() => null);
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    await PicaNetworkLogger.finishRequest({
+      id: start.id,
+      status: response.status,
+      body: serializeBody(responseBody),
+      headers: responseHeaders
+    });
+
+    updateOutput(JSON.stringify(responseBody ?? response, null, 2));
   } catch (err) {
     updateOutput(String(err));
   }
 };
-
-const openInspector = async () => {
-  await PicaNetworkLogger.openInspector();
-};
-
 
 const updateOutput = (text: string) => {
   const output = document.getElementById('output');
@@ -139,4 +168,8 @@ document.getElementById('patch-resource')?.addEventListener('click', () => runRe
 document.getElementById('delete-resource')?.addEventListener('click', () => runRequest('delete-resource'));
 document.getElementById('filter-resources')?.addEventListener('click', () => runRequest('filter-resources'));
 document.getElementById('list-nested')?.addEventListener('click', () => runRequest('list-nested'));
-document.getElementById('inspector')?.addEventListener('click', openInspector);
+const openInspectorAction = async () => {
+  await PicaNetworkLogger.openInspector();
+};
+
+document.getElementById('inspector')?.addEventListener('click', openInspectorAction);

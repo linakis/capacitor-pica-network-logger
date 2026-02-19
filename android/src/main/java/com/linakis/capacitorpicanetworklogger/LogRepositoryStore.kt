@@ -9,7 +9,7 @@ object LogRepositoryStore {
     private var redactHeaders: Set<String> = setOf("authorization", "cookie")
     private var redactJsonFields: Set<String> = setOf("password", "token")
     private var notifyEnabled: Boolean = true
-    private val requestIndex: MutableMap<String, Pair<String, String>> = mutableMapOf()
+    private val requestStartTs: MutableMap<String, Long> = mutableMapOf()
 
     fun attach(context: android.content.Context, repo: LogRepository? = null, maxBodySize: Int? = null) {
         val instance = repo ?: LogRepository()
@@ -36,16 +36,10 @@ object LogRepositoryStore {
         }
     }
 
-    fun isNotifyEnabled(): Boolean = notifyEnabled
-
     fun notify(method: String, url: String, status: Int?) {
         if (!notifyEnabled) return
         val context = appContext ?: return
         InspectorNotifications.show(context, method, url, status)
-    }
-
-    fun updateMaxBodySize(size: Int) {
-        maxBodySize = size
     }
 
     fun getRepository(): LogRepository? = repository
@@ -61,12 +55,13 @@ object LogRepositoryStore {
         data.put("id", id)
         data.put("method", method)
         data.put("url", url)
-        data.put("startTs", System.currentTimeMillis())
+        val startTs = System.currentTimeMillis()
+        data.put("startTs", startTs)
         data.put("headers", headers?.redactedHeaders()?.toJsObject())
         val truncated = truncate(body?.redactJson())
         data.put("requestBody", truncated.value)
         data.put("requestBodyTruncated", truncated.truncated)
-        requestIndex[id] = method to url
+        requestStartTs[id] = startTs
         repository?.startRequest(data)
     }
 
@@ -89,7 +84,12 @@ object LogRepositoryStore {
         if (error != null) data.put("error", error)
         if (protocol != null) data.put("protocol", protocol)
         if (ssl != null) data.put("ssl", ssl)
+        val startTs = requestStartTs[id]
+        if (startTs != null) {
+            data.put("durationMs", System.currentTimeMillis() - startTs)
+        }
         repository?.finishRequest(data)
+        requestStartTs.remove(id)
     }
 
     private fun truncate(value: String?): Truncated {

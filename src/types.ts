@@ -1,35 +1,14 @@
-export type RedactionConfig = {
-  redactHeaders?: string[];
-  redactJsonFields?: string[];
-};
-
-export type LoggerConfig = {
-  enabled?: boolean;
-  maxBodySize?: number;
-} & RedactionConfig;
-
-export type RequestMeta = {
-  id: string;
+export type StartRequestOptions = {
   method: string;
   url: string;
   headers?: Record<string, string>;
-  params?: Record<string, unknown>;
-  dataType?: string;
-  requestBody?: string | null;
-  requestBodyTruncated?: boolean;
-  requestBodySize?: number;
-  startTs: number;
+  body?: unknown;
 };
 
-export type ResponseMeta = {
+export type FinishRequestOptions = {
   id: string;
   status?: number;
   headers?: Record<string, string>;
-  responseBody?: string | null;
-  responseBodyTruncated?: boolean;
-  responseBodySize?: number;
-  durationMs?: number;
+  body?: unknown;
   error?: string;
 };
-
-export type LogRecord = RequestMeta & ResponseMeta;

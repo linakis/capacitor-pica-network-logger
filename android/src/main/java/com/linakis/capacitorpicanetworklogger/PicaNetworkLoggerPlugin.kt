@@ -17,17 +17,30 @@ class PicaNetworkLoggerPlugin : Plugin() {
     override fun load() {
         super.load()
         repository.attach(bridge.context)
-        LogRepositoryStore.attach(bridge.context, repository, configProvider.getConfig(this).getInt("maxBodySize"))
-        LogRepositoryStore.updateNotify(configProvider.getConfig(this).getBoolean("notify", true))
-        requestNotificationPermissionIfNeeded()
+        val config = configProvider.getConfig(this)
+        LogRepositoryStore.attach(bridge.context, repository, config.getInt("maxBodySize"))
+        val redactHeaders = config.get("redactHeaders")?.let { value ->
+            when (value) {
+                is org.json.JSONArray -> (0 until value.length()).map { index -> value.get(index).toString() }
+                else -> null
+            }
+        }
+        val redactJsonFields = config.get("redactJsonFields")?.let { value ->
+            when (value) {
+                is org.json.JSONArray -> (0 until value.length()).map { index -> value.get(index).toString() }
+                else -> null
+            }
+        }
+        LogRepositoryStore.updateRedaction(redactHeaders, redactJsonFields)
+        LogRepositoryStore.updateNotify(config.getBoolean("notify", true))
+        requestNotificationPermissionIfNeeded(config.getBoolean("notify", true))
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
+    private fun requestNotificationPermissionIfNeeded(notifyEnabled: Boolean) {
         if (Build.VERSION.SDK_INT < 33) {
             return
         }
-        val notifyEnabled = configProvider.getConfig(this).getBoolean("notify", true)
-        if (notifyEnabled != true) {
+        if (!notifyEnabled) {
             return
         }
         val activity = activity ?: return
@@ -37,29 +50,17 @@ class PicaNetworkLoggerPlugin : Plugin() {
         ActivityCompat.requestPermissions(activity, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
     }
 
-    @PluginMethod
-    fun requestNotificationPermission(call: PluginCall) {
-        if (Build.VERSION.SDK_INT < 33) {
-            call.resolve()
-            return
-        }
-        val activity = activity ?: run {
-            call.reject("No activity")
-            return
-        }
-        if (ActivityCompat.checkSelfPermission(activity, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            call.resolve()
-            return
-        }
-        ActivityCompat.requestPermissions(activity, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
-        call.resolve()
-    }
-
 
     @PluginMethod
     fun startRequest(call: PluginCall) {
-        val id = call.getString("id") ?: return call.reject("Missing id")
-        repository.startRequest(call.data)
+        val method = call.getString("method") ?: "GET"
+        val url = call.getString("url") ?: ""
+        val headers = call.getObject("headers")?.let { obj ->
+            obj.keys().asSequence().associateWith { key -> obj.getString(key) ?: "" }
+        }
+        val body = call.getString("body")
+        val id = java.util.UUID.randomUUID().toString()
+        LogRepositoryStore.logStart(id, method, url, headers, body)
         val ret = JSObject()
         ret.put("id", id)
         call.resolve(ret)
@@ -67,53 +68,15 @@ class PicaNetworkLoggerPlugin : Plugin() {
 
     @PluginMethod
     fun finishRequest(call: PluginCall) {
-        repository.finishRequest(call.data)
+        val id = call.getString("id") ?: return call.reject("Missing id")
+        val status = call.getInt("status")
+        val headers = call.getObject("headers")?.let { obj ->
+            obj.keys().asSequence().associateWith { key -> obj.getString(key) ?: "" }
+        }
+        val body = call.getString("body")
+        val error = call.getString("error")
+        LogRepositoryStore.logFinish(id, status, headers, body, error, null, null)
         call.resolve()
-    }
-
-    @PluginMethod
-    fun getLogs(call: PluginCall) {
-        val ret = JSObject()
-        ret.put("logs", repository.getLogs())
-        call.resolve(ret)
-    }
-
-    @PluginMethod
-    fun getLog(call: PluginCall) {
-        val id = call.getString("id")
-        val ret = JSObject()
-        ret.put("log", repository.getLog(id))
-        call.resolve(ret)
-    }
-
-    @PluginMethod
-    fun clearLogs(call: PluginCall) {
-        repository.clear()
-        call.resolve()
-    }
-
-    @PluginMethod
-    fun getConfig(call: PluginCall) {
-        val ret = configProvider.getConfig(this)
-        val maxBodySize = ret.getInt("maxBodySize")
-        if (maxBodySize != null) {
-            LogRepositoryStore.updateMaxBodySize(maxBodySize)
-        }
-        LogRepositoryStore.updateNotify(ret.getBoolean("notify", true))
-        val redactHeaders = ret.get("redactHeaders")?.let { value ->
-            when (value) {
-                is org.json.JSONArray -> (0 until value.length()).map { index -> value.get(index).toString() }
-                else -> null
-            }
-        }
-        val redactJsonFields = ret.get("redactJsonFields")?.let { value ->
-            when (value) {
-                is org.json.JSONArray -> (0 until value.length()).map { index -> value.get(index).toString() }
-                else -> null
-            }
-        }
-        LogRepositoryStore.updateRedaction(redactHeaders, redactJsonFields)
-        call.resolve(ret)
     }
 
     @PluginMethod
@@ -125,12 +88,4 @@ class PicaNetworkLoggerPlugin : Plugin() {
         call.resolve()
     }
 
-    @PluginMethod
-    fun showNotification(call: PluginCall) {
-        val method = call.getString("method") ?: ""
-        val url = call.getString("url") ?: ""
-        val status = call.getInt("status")
-        InspectorNotifications.show(bridge.context, method, url, status)
-        call.resolve()
-    }
 }

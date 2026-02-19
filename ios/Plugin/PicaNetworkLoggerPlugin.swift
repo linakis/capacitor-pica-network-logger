@@ -2,6 +2,7 @@ import Foundation
 #if canImport(Capacitor)
 import Capacitor
 import UIKit
+import UserNotifications
 
 @objc(PicaNetworkLoggerPlugin)
 public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -10,60 +11,49 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "startRequest", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "finishRequest", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getLogs", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getLog", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clearLogs", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getConfig", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openInspector", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "showNotification", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestNotificationPermission", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "openInspector", returnType: CAPPluginReturnPromise)
     ]
-    private let repository = LogRepository.shared
     private let configProvider = LoggerConfigProvider()
 
     @objc func startRequest(_ call: CAPPluginCall) {
-        guard let id = call.getString("id") else {
-            call.reject("Missing id")
-            return
-        }
-        if let options = call.options as? [AnyHashable: Any] {
-            let normalized = options.reduce(into: [String: Any]()) { dict, item in
-                if let key = item.key as? String {
-                    dict[key] = item.value
-                }
-            }
-            repository.startRequest(normalized)
-        }
+        let id = UUID().uuidString
+        let method = call.getString("method") ?? "GET"
+        let url = call.getString("url") ?? ""
+        let headers = call.getObject("headers")
+        let body = call.getString("body")
+        InspectorLogger.shared.logStart(
+            id: id,
+            method: method,
+            url: url,
+            headers: headers,
+            body: body
+        )
         call.resolve(["id": id])
     }
 
     @objc func finishRequest(_ call: CAPPluginCall) {
-        if let options = call.options as? [AnyHashable: Any] {
-            let normalized = options.reduce(into: [String: Any]()) { dict, item in
-                if let key = item.key as? String {
-                    dict[key] = item.value
-                }
-            }
-            repository.finishRequest(normalized)
+        guard let id = call.getString("id") else {
+            call.reject("Missing id")
+            return
         }
+        let status = call.getInt("status")
+        let headers = call.getObject("headers")
+        let body = call.getString("body")
+        let error = call.getString("error")
+        let ssl = call.getBool("ssl")
+        InspectorLogger.shared.logFinish(
+            id: id,
+            status: status,
+            headers: headers,
+            body: body,
+            error: error,
+            ssl: ssl
+        )
         call.resolve()
     }
 
-    @objc func getLogs(_ call: CAPPluginCall) {
-        call.resolve(["logs": repository.getLogs()])
-    }
-
-    @objc func getLog(_ call: CAPPluginCall) {
-        let id = call.getString("id")
-        call.resolve(["log": repository.getLog(id)])
-    }
-
-    @objc func clearLogs(_ call: CAPPluginCall) {
-        repository.clear()
-        call.resolve()
-    }
-
-    @objc func getConfig(_ call: CAPPluginCall) {
+    public override func load() {
+        super.load()
         let config = configProvider.getConfig(self)
         if let size = config["maxBodySize"] as? Int {
             InspectorLogger.shared.setMaxBodySize(size)
@@ -73,7 +63,14 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         InspectorLogger.shared.setRedaction(headers: headers, jsonFields: jsonFields)
         let notify = config["notify"] as? Bool ?? true
         InspectorLogger.shared.setNotify(enabled: notify)
-        call.resolve(config)
+        requestNotificationPermissionIfNeeded(enabled: notify)
+    }
+
+    private func requestNotificationPermissionIfNeeded(enabled: Bool) {
+        guard enabled else { return }
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
+        }
     }
 
     @objc func openInspector(_ call: CAPPluginCall) {
@@ -87,43 +84,6 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         #endif
         call.resolve()
-    }
-
-    @objc func showNotification(_ call: CAPPluginCall) {
-        InspectorNotifications.show(method: "", url: "", status: nil)
-        call.resolve()
-    }
-
-    @objc func requestNotificationPermission(_ call: CAPPluginCall) {
-        #if canImport(UserNotifications)
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            call.resolve(["granted": granted])
-        }
-        #else
-        call.resolve(["granted": false])
-        #endif
-    }
-
-    public override func load() {
-        super.load()
-        requestNotificationPermissionImplicitly()
-        #if canImport(UIKit)
-        URLProtocol.registerClass(InspectorURLProtocol.self)
-        #endif
-    }
-
-    private func requestNotificationPermissionImplicitly() {
-        #if canImport(UserNotifications)
-        let config = configProvider.getConfig(self)
-        let notify = config["notify"] as? Bool ?? true
-        if notify == false {
-            return
-        }
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
-        }
-        #endif
     }
 }
 #endif
