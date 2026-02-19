@@ -16,6 +16,8 @@ object InspectorNotifications {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
+            channel.setSound(null, null)
+            channel.enableVibration(false)
             manager.createNotificationChannel(channel)
         }
 

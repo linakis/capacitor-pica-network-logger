@@ -32,8 +32,8 @@ class PicaNetworkLoggerPlugin : Plugin() {
             }
         }
         LogRepositoryStore.updateRedaction(redactHeaders, redactJsonFields)
-        LogRepositoryStore.updateNotify(config.getBoolean("notify", true))
-        requestNotificationPermissionIfNeeded(config.getBoolean("notify", true))
+        LogRepositoryStore.updateNotify(config.optBoolean("notify", true))
+        requestNotificationPermissionIfNeeded(config.optBoolean("notify", true))
     }
 
     private fun requestNotificationPermissionIfNeeded(notifyEnabled: Boolean) {

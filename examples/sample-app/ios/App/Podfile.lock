@@ -2,7 +2,7 @@ PODS:
   - Capacitor (7.5.0):
     - CapacitorCordova
   - CapacitorCordova (7.5.0)
-  - CapacitorPicaNetworkLogger (0.1.4):
+  - CapacitorPicaNetworkLogger (0.1.6):
     - Capacitor
 
 DEPENDENCIES:
@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Capacitor: 0a78ec6b54580fa055c11744a4e83cd7942d98ca
   CapacitorCordova: ae35646a9b46cfd00d637f195509c86594026aad
-  CapacitorPicaNetworkLogger: f67181635a1a2455e08e44b45cedec64cd93535c
+  CapacitorPicaNetworkLogger: 5bcdbe95811691343eb7fe4b41013073f9b1b0c2
 
 PODFILE CHECKSUM: 1301a3a0fd027b6dd7a0645ef3b1e8a2a962675a
 
