@@ -4,6 +4,7 @@
         <activity
             android:name="com.linakis.capacitorpicanetworklogger.InspectorActivity"
             android:exported="false"
+            android:taskAffinity="com.linakis.capacitorpicanetworklogger.inspector"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
     </application>
 </manifest>

@@ -8,6 +8,7 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
+import org.json.JSONObject
 
 @CapacitorPlugin(name = "PicaNetworkLogger")
 class PicaNetworkLoggerPlugin : Plugin() {
@@ -58,7 +59,7 @@ class PicaNetworkLoggerPlugin : Plugin() {
         val headers = call.getObject("headers")?.let { obj ->
             obj.keys().asSequence().associateWith { key -> obj.getString(key) ?: "" }
         }
-        val body = call.getString("body")
+        val body = call.data.opt("body")?.let { if ( it == JSONObject.NULL) null else it.toString() }
         val id = java.util.UUID.randomUUID().toString()
         LogRepositoryStore.logStart(id, method, url, headers, body)
         val ret = JSObject()
@@ -73,7 +74,7 @@ class PicaNetworkLoggerPlugin : Plugin() {
         val headers = call.getObject("headers")?.let { obj ->
             obj.keys().asSequence().associateWith { key -> obj.getString(key) ?: "" }
         }
-        val body = call.getString("body")
+        val body = call.data.opt("body")?.let { if ( it == JSONObject.NULL) null else it.toString() }
         val error = call.getString("error")
         LogRepositoryStore.logFinish(id, status, headers, body, error, null, null)
         call.resolve()
