@@ -116,10 +116,12 @@ final class InspectorLogCell: UITableViewCell {
     private let container = UIView()
     private let titleLabel = UILabel()
     private let hostLabel = UILabel()
-    private let metaLabel = UILabel()
+    private let dateLabel = UILabel()
+    private let detailLabel = UILabel()
     private let statusChip = InspectorChipLabel()
     private let methodChip = InspectorChipLabel()
     private let headerRow = UIStackView()
+    private let bottomRow = UIStackView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -132,26 +134,52 @@ final class InspectorLogCell: UITableViewCell {
         container.layer.masksToBounds = true
         contentView.addSubview(container)
 
+        // Row 1: [statusChip] [methodChip] --- dateLabel
         headerRow.axis = .horizontal
         headerRow.spacing = 8
         headerRow.alignment = .center
         headerRow.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.numberOfLines = 1
-        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        dateLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+        dateLabel.numberOfLines = 1
+        dateLabel.textAlignment = .right
+        dateLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        dateLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        hostLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
-        hostLabel.numberOfLines = 1
-
-        metaLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
-        metaLabel.numberOfLines = 1
+        let headerSpacer = UIView()
+        headerSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         headerRow.addArrangedSubview(statusChip)
         headerRow.addArrangedSubview(methodChip)
-        headerRow.addArrangedSubview(titleLabel)
+        headerRow.addArrangedSubview(headerSpacer)
+        headerRow.addArrangedSubview(dateLabel)
 
-        let stack = UIStackView(arrangedSubviews: [headerRow, hostLabel, metaLabel])
+        // Row 2: path (full width, unlimited lines)
+        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.numberOfLines = 0
+
+        // Row 3: hostLabel --- detailLabel (duration • size)
+        bottomRow.axis = .horizontal
+        bottomRow.spacing = 8
+        bottomRow.alignment = .center
+        bottomRow.translatesAutoresizingMaskIntoConstraints = false
+
+        hostLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
+        hostLabel.numberOfLines = 1
+        hostLabel.lineBreakMode = .byTruncatingTail
+        hostLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        hostLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        detailLabel.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+        detailLabel.numberOfLines = 1
+        detailLabel.textAlignment = .right
+        detailLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        detailLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        bottomRow.addArrangedSubview(hostLabel)
+        bottomRow.addArrangedSubview(detailLabel)
+
+        let stack = UIStackView(arrangedSubviews: [headerRow, titleLabel, bottomRow])
         stack.axis = .vertical
         stack.spacing = 6
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -177,7 +205,8 @@ final class InspectorLogCell: UITableViewCell {
         container.backgroundColor = InspectorTheme.cardBackground(isDark)
         titleLabel.textColor = InspectorTheme.textPrimary(isDark)
         hostLabel.textColor = InspectorTheme.textSecondary(isDark)
-        metaLabel.textColor = InspectorTheme.textSecondary(isDark)
+        dateLabel.textColor = InspectorTheme.textSecondary(isDark)
+        detailLabel.textColor = InspectorTheme.textSecondary(isDark)
 
         let statusText = log.resStatus.map { "\($0)" } ?? "-"
         statusChip.configure(text: statusText, background: InspectorTheme.statusColor(log.resStatus), content: InspectorTheme.contentColor(for: InspectorTheme.statusColor(log.resStatus)))
@@ -186,10 +215,10 @@ final class InspectorLogCell: UITableViewCell {
         let path = log.path ?? URL(string: log.url)?.path ?? ""
         titleLabel.text = path.isEmpty ? log.url : path
         hostLabel.text = log.host ?? URL(string: log.url)?.host ?? ""
-        let time = InspectorTheme.formatTime(log.startTs)
+        dateLabel.text = InspectorTheme.formatTime(log.startTs)
         let duration = "\(log.durationMs ?? 0) ms"
         let size = InspectorTheme.formatSize(log.resBody?.count ?? 0)
-        metaLabel.text = [time, duration, size].joined(separator: "  •  ")
+        detailLabel.text = [duration, size].joined(separator: "  •  ")
     }
 }
 
@@ -614,7 +643,7 @@ enum InspectorTheme {
     static func formatTime(_ epochMillis: Int64) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(epochMillis) / 1000)
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
+        formatter.dateFormat = "dd MMM HH:mm:ss"
         return formatter.string(from: date)
     }
 

@@ -69,6 +69,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -415,39 +416,45 @@ private fun TransactionList(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
+                    // Row 1: pills + date/time
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         StatusChip(status = entry.resStatus)
                         MethodChip(method = entry.method)
+                        Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = path.ifBlank { entry.url },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = formatTime(entry.startTs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    // Row 2: full-width path (unlimited lines)
                     Text(
-                        text = host,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = path.ifBlank { entry.url },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
+                    // Row 3: host + duration/size
                     Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            formatTime(entry.startTs),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = host,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                         Text(
-                            "${entry.durationMs ?: 0} ms",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            formatSize(entry.resBody?.length ?: 0),
+                            text = "${entry.durationMs ?: 0} ms  •  ${formatSize(entry.resBody?.length ?: 0)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -708,7 +715,7 @@ private fun Chip(label: String, background: Color, contentColor: Color) {
 
 private fun formatTime(epochMillis: Long): String {
     val date = java.util.Date(epochMillis)
-    val formatter = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault())
+    val formatter = java.text.SimpleDateFormat("dd MMM HH:mm:ss", java.util.Locale.getDefault())
     return formatter.format(date)
 }
 
