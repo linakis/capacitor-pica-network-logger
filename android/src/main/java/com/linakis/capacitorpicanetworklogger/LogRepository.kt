@@ -1,13 +1,20 @@
 package com.linakis.capacitorpicanetworklogger
 
 import com.getcapacitor.JSObject
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class LogRepository {
     private val logsById: MutableMap<String, LogEntry> = ConcurrentHashMap()
+    private var database: LogDatabase? = null
 
     fun attach(@Suppress("UNUSED_PARAMETER") context: android.content.Context) {
-        // No-op: in-memory storage
+        if (database != null) return
+        val dbFile = File(context.applicationContext.filesDir, "cap-pica-logger.sqlite")
+        database = LogDatabase(dbFile)
+        database?.readAll()?.forEach { entry ->
+            logsById[entry.id] = entry
+        }
     }
 
     fun startRequest(data: JSObject) {
@@ -36,6 +43,7 @@ class LogRepository {
             correlationId = correlationId
         )
         logsById[id] = entry
+        database?.upsert(entry)
     }
 
     fun finishRequest(data: JSObject) {
@@ -70,6 +78,7 @@ class LogRepository {
         entry.error = error
         entry.errorMessage = errorMessage
         logsById[id] = entry
+        database?.upsert(entry)
 
         val notifyMethod = entry.method
         val notifyUrl = entry.url
@@ -97,6 +106,166 @@ class LogRepository {
 
     fun clear() {
         logsById.clear()
+        database?.clear()
+    }
+}
+
+private class LogDatabase(private val file: File) {
+    private val driver = DatabaseDriver(file)
+
+    init {
+        driver.open()
+        driver.exec(
+            """
+            CREATE TABLE IF NOT EXISTS logs (
+                id TEXT PRIMARY KEY,
+                startTs INTEGER,
+                durationMs INTEGER,
+                method TEXT,
+                url TEXT,
+                host TEXT,
+                path TEXT,
+                query TEXT,
+                reqHeadersJson TEXT,
+                reqBody TEXT,
+                reqBodyTruncated INTEGER,
+                resStatus INTEGER,
+                resHeadersJson TEXT,
+                resBody TEXT,
+                resBodyTruncated INTEGER,
+                protocol TEXT,
+                ssl INTEGER,
+                error INTEGER,
+                errorMessage TEXT,
+                platform TEXT,
+                correlationId TEXT
+            );
+            """.trimIndent()
+        )
+    }
+
+    fun upsert(entry: LogEntry) {
+        driver.exec(
+            """
+            INSERT OR REPLACE INTO logs (
+                id, startTs, durationMs, method, url, host, path, query, reqHeadersJson, reqBody,
+                reqBodyTruncated, resStatus, resHeadersJson, resBody, resBodyTruncated, protocol,
+                ssl, error, errorMessage, platform, correlationId
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """.trimIndent(),
+            listOf(
+                entry.id,
+                entry.startTs,
+                entry.durationMs,
+                entry.method,
+                entry.url,
+                entry.host,
+                entry.path,
+                entry.query,
+                entry.reqHeadersJson,
+                entry.reqBody,
+                if (entry.reqBodyTruncated) 1 else 0,
+                entry.resStatus,
+                entry.resHeadersJson,
+                entry.resBody,
+                if (entry.resBodyTruncated) 1 else 0,
+                entry.protocol,
+                if (entry.ssl) 1 else 0,
+                if (entry.error) 1 else 0,
+                entry.errorMessage,
+                entry.platform,
+                entry.correlationId
+            )
+        )
+    }
+
+    fun readAll(): List<LogEntry> {
+        val rows = driver.query(
+            """
+            SELECT id, startTs, durationMs, method, url, host, path, query, reqHeadersJson, reqBody,
+                   reqBodyTruncated, resStatus, resHeadersJson, resBody, resBodyTruncated, protocol,
+                   ssl, error, errorMessage, platform, correlationId
+            FROM logs
+            """.trimIndent()
+        )
+        return rows.mapNotNull { row ->
+            val id = row[0] as? String ?: return@mapNotNull null
+            val startTs = (row[1] as? Number)?.toLong() ?: return@mapNotNull null
+            val method = row[3] as? String ?: return@mapNotNull null
+            val url = row[4] as? String ?: return@mapNotNull null
+            val platform = row[19] as? String ?: return@mapNotNull null
+            val entry = LogEntry(
+                id = id,
+                startTs = startTs,
+                method = method,
+                url = url,
+                host = row[5] as? String,
+                path = row[6] as? String,
+                query = row[7] as? String,
+                reqHeadersJson = row[8] as? String,
+                reqBody = row[9] as? String,
+                reqBodyTruncated = (row[10] as? Number)?.toInt() == 1,
+                platform = platform,
+                correlationId = row[20] as? String
+            )
+            entry.durationMs = (row[2] as? Number)?.toLong()
+            entry.resStatus = (row[11] as? Number)?.toLong()
+            entry.resHeadersJson = row[12] as? String
+            entry.resBody = row[13] as? String
+            entry.resBodyTruncated = (row[14] as? Number)?.toInt() == 1
+            entry.protocol = row[15] as? String
+            entry.ssl = (row[16] as? Number)?.toInt() == 1
+            entry.error = (row[17] as? Number)?.toInt() == 1
+            entry.errorMessage = row[18] as? String
+            entry
+        }
+    }
+
+    fun clear() {
+        driver.exec("DELETE FROM logs")
+    }
+}
+
+private class DatabaseDriver(private val file: File) {
+    private var database: android.database.sqlite.SQLiteDatabase? = null
+
+    fun open() {
+        if (database != null) return
+        database = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(file, null)
+    }
+
+    fun exec(sql: String, args: List<Any?> = emptyList()) {
+        val db = database ?: return
+        if (args.isEmpty()) {
+            db.execSQL(sql)
+        } else {
+            db.execSQL(sql, args.toTypedArray())
+        }
+    }
+
+    fun query(sql: String): List<List<Any?>> {
+        val db = database ?: return emptyList()
+        val cursor = db.rawQuery(sql, null)
+        val rows = mutableListOf<List<Any?>>()
+        cursor.use {
+            val count = cursor.columnCount
+            while (cursor.moveToNext()) {
+                val row = ArrayList<Any?>(count)
+                for (i in 0 until count) {
+                    row.add(
+                        when (cursor.getType(i)) {
+                            android.database.Cursor.FIELD_TYPE_NULL -> null
+                            android.database.Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(i)
+                            android.database.Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(i)
+                            android.database.Cursor.FIELD_TYPE_BLOB -> cursor.getBlob(i)
+                            else -> cursor.getString(i)
+                        }
+                    )
+                }
+                rows.add(row)
+            }
+        }
+        return rows
     }
 }
 

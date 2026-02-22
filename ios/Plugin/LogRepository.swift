@@ -1,10 +1,30 @@
 import Foundation
+import SQLite3
+
+private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 class LogRepository {
     static let shared = LogRepository()
 
     private var logsById: [String: LogEntry] = [:]
     private let lock = NSLock()
+    private var db: OpaquePointer?
+    private let dbPath: String?
+
+    init() {
+        dbPath = LogRepository.databasePath()
+        if let path = dbPath {
+            openDatabase(path)
+            createTableIfNeeded()
+            loadPersistedLogs()
+        }
+    }
+
+    deinit {
+        if let db = db {
+            sqlite3_close(db)
+        }
+    }
 
     func startRequest(_ data: [String: Any]) {
         guard let id = data["id"] as? String,
@@ -34,6 +54,8 @@ class LogRepository {
         lock.lock()
         logsById[id] = entry
         lock.unlock()
+
+        upsert(entry)
     }
 
     func finishRequest(_ data: [String: Any]) {
@@ -62,6 +84,8 @@ class LogRepository {
         entry.errorMessage = errorMessage
         logsById[id] = entry
         lock.unlock()
+
+        upsert(entry)
     }
 
     func getLogs() -> [[String: Any]] {
@@ -87,6 +111,176 @@ class LogRepository {
         lock.lock()
         logsById.removeAll()
         lock.unlock()
+
+        deleteAll()
+    }
+
+    private static func databasePath() -> String? {
+        let fileManager = FileManager.default
+        guard let baseUrl = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let directory = baseUrl.appendingPathComponent("CapacitorPicaNetworkLogger", isDirectory: true)
+        if !fileManager.fileExists(atPath: directory.path) {
+            try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        return directory.appendingPathComponent("logs.sqlite").path
+    }
+
+    private func openDatabase(_ path: String) {
+        if sqlite3_open(path, &db) != SQLITE_OK {
+            db = nil
+        }
+    }
+
+    private func createTableIfNeeded() {
+        guard let db = db else { return }
+        let sql = """
+        CREATE TABLE IF NOT EXISTS logs (
+            id TEXT PRIMARY KEY,
+            startTs INTEGER,
+            durationMs INTEGER,
+            method TEXT,
+            url TEXT,
+            host TEXT,
+            path TEXT,
+            query TEXT,
+            reqHeadersJson TEXT,
+            reqBody TEXT,
+            reqBodyTruncated INTEGER,
+            resStatus INTEGER,
+            resHeadersJson TEXT,
+            resBody TEXT,
+            resBodyTruncated INTEGER,
+            protocol TEXT,
+            ssl INTEGER,
+            error INTEGER,
+            errorMessage TEXT,
+            platform TEXT,
+            correlationId TEXT
+        );
+        """
+        sqlite3_exec(db, sql, nil, nil, nil)
+    }
+
+    private func loadPersistedLogs() {
+        guard let db = db else { return }
+        let sql = """
+        SELECT id, startTs, durationMs, method, url, host, path, query, reqHeadersJson, reqBody,
+               reqBodyTruncated, resStatus, resHeadersJson, resBody, resBodyTruncated, protocol,
+               ssl, error, errorMessage, platform, correlationId
+        FROM logs
+        """
+        var statement: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &statement, nil) != SQLITE_OK {
+            return
+        }
+        defer { sqlite3_finalize(statement) }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let id = columnText(statement, index: 0),
+                  let method = columnText(statement, index: 3),
+                  let url = columnText(statement, index: 4),
+                  let platform = columnText(statement, index: 19) else {
+                continue
+            }
+            let startTs = sqlite3_column_int64(statement, 1)
+            let entry = LogEntry(
+                id: id,
+                startTs: startTs,
+                method: method,
+                url: url,
+                host: columnText(statement, index: 5),
+                path: columnText(statement, index: 6),
+                query: columnText(statement, index: 7),
+                reqHeadersJson: columnText(statement, index: 8),
+                reqBody: columnText(statement, index: 9),
+                reqBodyTruncated: sqlite3_column_int64(statement, 10) != 0,
+                platform: platform,
+                correlationId: columnText(statement, index: 20)
+            )
+            if sqlite3_column_type(statement, 2) != SQLITE_NULL {
+                entry.durationMs = sqlite3_column_int64(statement, 2)
+            }
+            if sqlite3_column_type(statement, 11) != SQLITE_NULL {
+                entry.resStatus = sqlite3_column_int64(statement, 11)
+            }
+            entry.resHeadersJson = columnText(statement, index: 12)
+            entry.resBody = columnText(statement, index: 13)
+            entry.resBodyTruncated = sqlite3_column_int64(statement, 14) != 0
+            entry.protocol = columnText(statement, index: 15)
+            entry.ssl = sqlite3_column_int64(statement, 16) != 0
+            entry.error = sqlite3_column_int64(statement, 17) != 0
+            entry.errorMessage = columnText(statement, index: 18)
+
+            logsById[id] = entry
+        }
+    }
+
+    private func upsert(_ entry: LogEntry) {
+        guard let db = db else { return }
+        let sql = """
+        INSERT OR REPLACE INTO logs (
+            id, startTs, durationMs, method, url, host, path, query, reqHeadersJson, reqBody,
+            reqBodyTruncated, resStatus, resHeadersJson, resBody, resBodyTruncated, protocol,
+            ssl, error, errorMessage, platform, correlationId
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        var statement: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &statement, nil) != SQLITE_OK {
+            return
+        }
+        defer { sqlite3_finalize(statement) }
+
+        sqlite3_bind_text(statement, 1, entry.id, -1, sqliteTransient)
+        sqlite3_bind_int64(statement, 2, entry.startTs)
+        bindOptionalInt64(statement, index: 3, value: entry.durationMs)
+        sqlite3_bind_text(statement, 4, entry.method, -1, sqliteTransient)
+        sqlite3_bind_text(statement, 5, entry.url, -1, sqliteTransient)
+        bindOptionalText(statement, index: 6, value: entry.host)
+        bindOptionalText(statement, index: 7, value: entry.path)
+        bindOptionalText(statement, index: 8, value: entry.query)
+        bindOptionalText(statement, index: 9, value: entry.reqHeadersJson)
+        bindOptionalText(statement, index: 10, value: entry.reqBody)
+        sqlite3_bind_int(statement, 11, entry.reqBodyTruncated ? 1 : 0)
+        bindOptionalInt64(statement, index: 12, value: entry.resStatus)
+        bindOptionalText(statement, index: 13, value: entry.resHeadersJson)
+        bindOptionalText(statement, index: 14, value: entry.resBody)
+        sqlite3_bind_int(statement, 15, entry.resBodyTruncated ? 1 : 0)
+        bindOptionalText(statement, index: 16, value: entry.protocol)
+        sqlite3_bind_int(statement, 17, entry.ssl ? 1 : 0)
+        sqlite3_bind_int(statement, 18, entry.error ? 1 : 0)
+        bindOptionalText(statement, index: 19, value: entry.errorMessage)
+        sqlite3_bind_text(statement, 20, entry.platform, -1, sqliteTransient)
+        bindOptionalText(statement, index: 21, value: entry.correlationId)
+
+        sqlite3_step(statement)
+    }
+
+    private func deleteAll() {
+        guard let db = db else { return }
+        sqlite3_exec(db, "DELETE FROM logs", nil, nil, nil)
+    }
+
+    private func columnText(_ statement: OpaquePointer?, index: Int32) -> String? {
+        guard let cString = sqlite3_column_text(statement, index) else { return nil }
+        return String(cString: cString)
+    }
+
+    private func bindOptionalText(_ statement: OpaquePointer?, index: Int32, value: String?) {
+        if let value = value {
+            sqlite3_bind_text(statement, index, value, -1, sqliteTransient)
+        } else {
+            sqlite3_bind_null(statement, index)
+        }
+    }
+
+    private func bindOptionalInt64(_ statement: OpaquePointer?, index: Int32, value: Int64?) {
+        if let value = value {
+            sqlite3_bind_int64(statement, index, value)
+        } else {
+            sqlite3_bind_null(statement, index)
+        }
     }
 
     private func jsonString(_ value: Any?) -> String? {
