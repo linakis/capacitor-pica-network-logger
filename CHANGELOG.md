@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-02-22
+
 ### Added
 - Body text search with highlighting in both Android and iOS inspector UIs.
 - Podspec now reads version from `package.json` automatically.
