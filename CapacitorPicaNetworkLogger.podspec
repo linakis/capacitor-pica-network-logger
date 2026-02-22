@@ -1,6 +1,7 @@
 Pod::Spec.new do |s|
+  package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
   s.name = 'CapacitorPicaNetworkLogger'
-  s.version = '0.2.3'
+  s.version = package['version']
   s.summary = 'Capacitor HTTP inspector'
   s.license = 'MIT'
   s.author = { 'Nikos Linakis' => 'nikos@linakis.net' }

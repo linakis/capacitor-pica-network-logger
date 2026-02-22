@@ -480,6 +480,7 @@ private fun TransactionDetail(
         return
     }
     var tab by remember { mutableIntStateOf(0) }
+    var bodyQuery by remember { mutableStateOf("") }
     Column(
         modifier = modifier
             .padding(12.dp)
@@ -488,6 +489,20 @@ private fun TransactionDetail(
         Spacer(modifier = Modifier.height(8.dp))
         OverviewSection(entry)
         Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = bodyQuery,
+            onValueChange = { bodyQuery = it },
+            label = { Text("Search body") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                if (bodyQuery.isNotEmpty()) {
+                    IconButton(onClick = { bodyQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Clear")
+                    }
+                }
+            }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         TabRow(
             selectedTabIndex = tab,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -498,8 +513,8 @@ private fun TransactionDetail(
         }
         Spacer(modifier = Modifier.height(8.dp))
         when (tab) {
-            0 -> RequestTab(entry = entry)
-            1 -> ResponseTab(entry = entry)
+            0 -> RequestTab(entry = entry, bodyQuery = bodyQuery)
+            1 -> ResponseTab(entry = entry, bodyQuery = bodyQuery)
         }
     }
 }
@@ -518,27 +533,27 @@ private fun OverviewSection(entry: LogEntry) {
 }
 
 @Composable
-private fun RequestTab(entry: LogEntry) {
+private fun RequestTab(entry: LogEntry, bodyQuery: String) {
     val headers = parseHeaders(entry.reqHeadersJson)
     val body = formatBody(entry.reqBody)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HeadersSectionCard(title = "Request Headers", headers = headers)
-        SectionCard(title = "Request Body", body = body)
+        SectionCard(title = "Request Body", body = body, highlightQuery = bodyQuery, isBody = true)
     }
 }
 
 @Composable
-private fun ResponseTab(entry: LogEntry) {
+private fun ResponseTab(entry: LogEntry, bodyQuery: String) {
     val headers = parseHeaders(entry.resHeadersJson)
     val body = formatBody(entry.resBody)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HeadersSectionCard(title = "Response Headers", headers = headers)
-        SectionCard(title = "Response Body", body = body)
+        SectionCard(title = "Response Body", body = body, highlightQuery = bodyQuery, isBody = true)
     }
 }
 
 @Composable
-private fun SectionCard(title: String, body: String) {
+private fun SectionCard(title: String, body: String, highlightQuery: String = "", isBody: Boolean = false) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             title,
@@ -553,7 +568,18 @@ private fun SectionCard(title: String, body: String) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(body.ifBlank { "-" }, color = MaterialTheme.colorScheme.onSurface)
+                val displayBody = body.ifBlank { "-" }
+                val annotated = if (isBody && displayBody != "-") {
+                    highlightMatches(
+                        text = displayBody,
+                        query = highlightQuery,
+                        highlightColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        textColor = MaterialTheme.colorScheme.onSurface
+                    )
+                } else {
+                    AnnotatedString(displayBody)
+                }
+                Text(annotated, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -755,6 +781,41 @@ private fun formatBody(body: String?): String {
         }
     } catch (_: Exception) {
         body
+    }
+}
+
+private fun highlightMatches(
+    text: String,
+    query: String,
+    highlightColor: Color,
+    textColor: Color
+): AnnotatedString {
+    val trimmed = query.trim()
+    if (trimmed.length < 2) return AnnotatedString(text)
+    val lowerText = text.lowercase()
+    val lowerQuery = trimmed.lowercase()
+    var start = 0
+    return buildAnnotatedString {
+        while (start < text.length) {
+            val index = lowerText.indexOf(lowerQuery, startIndex = start)
+            if (index == -1) {
+                append(text.substring(start))
+                break
+            }
+            if (index > start) {
+                append(text.substring(start, index))
+            }
+            withStyle(
+                SpanStyle(
+                    background = highlightColor,
+                    color = textColor,
+                    fontWeight = FontWeight.SemiBold
+                )
+            ) {
+                append(text.substring(index, index + lowerQuery.length))
+            }
+            start = index + lowerQuery.length
+        }
     }
 }
 

@@ -19,11 +19,15 @@ Capacitor HTTP inspector with debug-only native capture and a JS wrapper that mi
 
 - Debug-only request/response logging
 - Native inspector UI (standalone Activity/UIViewController)
+- Body text search with highlighting in the inspector
+- Persistent log storage across inspector sessions
 - Notifications to open inspector
 - Redaction + max body size from Capacitor config
 - cURL/JSON/HAR exports + copy/share
 - Save cURL/JSON/HAR locally
 - Copy all logs as HAR
+
+See the [Changelog](CHANGELOG.md) for a full history of changes.
 
 ## Project layout
 

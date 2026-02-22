@@ -260,6 +260,7 @@ final class InspectorDetailViewController: UIViewController {
     private let segmented = UISegmentedControl(items: ["Request", "Response"])
     private let scrollView = UIScrollView()
     private let stack = UIStackView()
+    private var bodySearchQuery: String = ""
 
     init(log: LogEntry, isDark: Bool) {
         self.log = log
@@ -282,6 +283,16 @@ final class InspectorDetailViewController: UIViewController {
         segmented.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(segmented)
 
+        let searchField = UITextField()
+        searchField.translatesAutoresizingMaskIntoConstraints = false
+        searchField.placeholder = "Search body"
+        searchField.borderStyle = .roundedRect
+        searchField.autocorrectionType = .no
+        searchField.autocapitalizationType = .none
+        searchField.clearButtonMode = .whileEditing
+        searchField.addTarget(self, action: #selector(bodySearchChanged(_:)), for: .editingChanged)
+        view.addSubview(searchField)
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scrollView)
 
@@ -294,7 +305,10 @@ final class InspectorDetailViewController: UIViewController {
             segmented.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
             segmented.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             segmented.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            scrollView.topAnchor.constraint(equalTo: segmented.bottomAnchor, constant: 12),
+            searchField.topAnchor.constraint(equalTo: segmented.bottomAnchor, constant: 12),
+            searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            scrollView.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 12),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -309,6 +323,11 @@ final class InspectorDetailViewController: UIViewController {
     }
 
     @objc private func segmentChanged() {
+        refreshContent()
+    }
+
+    @objc private func bodySearchChanged(_ sender: UITextField) {
+        bodySearchQuery = sender.text ?? ""
         refreshContent()
     }
 
@@ -413,7 +432,7 @@ final class InspectorDetailViewController: UIViewController {
         } else if isHeader {
             bodyLabel.attributedText = attributedHeaders(body)
         } else {
-            bodyLabel.text = body
+            bodyLabel.attributedText = highlightedBody(body)
         }
         bodyLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(bodyLabel)
@@ -427,6 +446,28 @@ final class InspectorDetailViewController: UIViewController {
         wrapper.addArrangedSubview(titleLabel)
         wrapper.addArrangedSubview(card)
         return wrapper
+    }
+
+    private func highlightedBody(_ body: String) -> NSAttributedString {
+        let text = body.isEmpty ? "-" : body
+        let baseFont = UIFont.systemFont(ofSize: 13, weight: .regular)
+        let baseColor = InspectorTheme.textPrimary(isDark)
+        let result = NSMutableAttributedString(string: text, attributes: [.font: baseFont, .foregroundColor: baseColor])
+        let query = bodySearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.count < 2 { return result }
+        let lowerText = text.lowercased()
+        let lowerQuery = query.lowercased()
+        var searchRange = lowerText.startIndex..<lowerText.endIndex
+        while let range = lowerText.range(of: lowerQuery, options: [], range: searchRange) {
+            let nsRange = NSRange(range, in: text)
+            result.addAttributes([
+                .backgroundColor: InspectorTheme.highlightColor(isDark),
+                .foregroundColor: InspectorTheme.textPrimary(isDark),
+                .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
+            ], range: nsRange)
+            searchRange = range.upperBound..<lowerText.endIndex
+        }
+        return result
     }
 
     private func prettyJsonString(_ value: Any) -> String? {
@@ -593,6 +634,10 @@ enum InspectorTheme {
 
     static func textSecondary(_ dark: Bool) -> UIColor {
         return dark ? UIColor(red: 0.71, green: 0.74, blue: 0.76, alpha: 1) : UIColor(red: 0.29, green: 0.34, blue: 0.32, alpha: 1)
+    }
+
+    static func highlightColor(_ dark: Bool) -> UIColor {
+        return dark ? UIColor(red: 0.27, green: 0.36, blue: 0.16, alpha: 1) : UIColor(red: 0.98, green: 0.93, blue: 0.62, alpha: 1)
     }
 
     static func statusColor(_ status: Int64?) -> UIColor {

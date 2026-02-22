@@ -32,12 +32,14 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0"
   },
   "devDependencies": {
+    "@inquirer/prompts": "^8.2.1",
     "typescript": "^5.4.5"
   }
 }
