@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Redaction headers and JSON fields now default to empty (no redaction unless explicitly configured). Previously defaulted to `["authorization", "cookie"]` and `["password", "token"]`.
+- Fixed inconsistent redaction behavior between iOS and Android when no config was provided.
+- Binary response bodies (images, videos, audio, PDFs, etc.) are no longer stored in SQLite. A placeholder message is shown instead (e.g. `[Image preview not yet supported (image/png)]`).
+
 ## [0.2.4] - 2026-02-22
 
 ### Added

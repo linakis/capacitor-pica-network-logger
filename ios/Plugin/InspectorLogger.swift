@@ -4,8 +4,8 @@ class InspectorLogger {
     static let shared = InspectorLogger()
     private let repository = LogRepository.shared
     private var maxBodySize: Int = 131072
-    private var redactHeaders: Set<String> = ["authorization", "cookie"]
-    private var redactJsonFields: Set<String> = ["password", "token"]
+    private var redactHeaders: Set<String> = []
+    private var redactJsonFields: Set<String> = []
     private var notifyEnabled: Bool = true
     private var requestMethods: [String: String] = [:]
     private var requestUrls: [String: String] = [:]
@@ -64,9 +64,15 @@ class InspectorLogger {
             payload["headers"] = redact(headers)
         }
         if let body = body {
-            let truncated = truncate(redactJson(body))
-            payload["responseBody"] = truncated.value
-            payload["responseBodyTruncated"] = truncated.truncated
+            let contentType = contentType(from: headers)
+            if isBinaryContentType(contentType) {
+                payload["responseBody"] = binaryPlaceholder(contentType)
+                payload["responseBodyTruncated"] = false
+            } else {
+                let truncated = truncate(redactJson(body))
+                payload["responseBody"] = truncated.value
+                payload["responseBodyTruncated"] = truncated.truncated
+            }
         }
         if let error = error {
             payload["error"] = error
@@ -153,5 +159,38 @@ class InspectorLogger {
 
     func setNotify(enabled: Bool) {
         notifyEnabled = enabled
+    }
+
+    private func contentType(from headers: [String: Any]?) -> String? {
+        guard let headers = headers else { return nil }
+        for (key, value) in headers {
+            if key.lowercased() == "content-type", let str = value as? String {
+                return str.lowercased()
+            }
+        }
+        return nil
+    }
+
+    private func isBinaryContentType(_ contentType: String?) -> Bool {
+        guard let ct = contentType else { return false }
+        let binaryPrefixes = ["image/", "video/", "audio/", "application/octet-stream",
+                              "application/pdf", "application/zip", "application/gzip",
+                              "font/", "application/vnd.", "application/x-protobuf"]
+        return binaryPrefixes.contains { ct.hasPrefix($0) }
+    }
+
+    private func binaryPlaceholder(_ contentType: String?) -> String {
+        let ct = contentType ?? "unknown"
+        let mediaType: String
+        if ct.hasPrefix("image/") {
+            mediaType = "Image"
+        } else if ct.hasPrefix("video/") {
+            mediaType = "Video"
+        } else if ct.hasPrefix("audio/") {
+            mediaType = "Audio"
+        } else {
+            mediaType = "Binary"
+        }
+        return "[\(mediaType) preview not yet supported (\(ct))]"
     }
 }

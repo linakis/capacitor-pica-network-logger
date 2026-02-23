@@ -48,8 +48,8 @@ plugins: {
   PicaNetworkLogger: {
     maxBodySize: 131072,        // max chars per body (default: 128 KB)
     notify: true,               // show notifications per request (default: true)
-    redactHeaders: ["authorization", "cookie"],   // header names to redact
-    redactJsonFields: ["password", "token"]        // JSON field names to redact
+    redactHeaders: ["authorization", "cookie"],   // header names to redact (default: none)
+    redactJsonFields: ["password", "token"]        // JSON field names to redact (default: none)
   }
 }
 ```
@@ -58,8 +58,8 @@ plugins: {
 |---|---|---|---|
 | `maxBodySize` | `number` | `131072` | Maximum characters stored per request/response body. Truncated beyond this. |
 | `notify` | `boolean` | `true` | Post a local notification for each completed request. On Android 13+ requests `POST_NOTIFICATIONS` permission. |
-| `redactHeaders` | `string[]` | `["authorization", "cookie"]` | Header names (case-insensitive) whose values are replaced with `[REDACTED]`. |
-| `redactJsonFields` | `string[]` | `["password", "token"]` | Top-level JSON body field names (case-insensitive) whose values are replaced with `[REDACTED]`. |
+| `redactHeaders` | `string[]` | `[]` | Header names (case-insensitive) whose values are replaced with `[REDACTED]`. |
+| `redactJsonFields` | `string[]` | `[]` | Top-level JSON body field names (case-insensitive) whose values are replaced with `[REDACTED]`. |
 
 ## Usage
 

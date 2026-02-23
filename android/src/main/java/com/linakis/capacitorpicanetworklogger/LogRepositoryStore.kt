@@ -6,8 +6,8 @@ object LogRepositoryStore {
     private var repository: LogRepository? = null
     private var appContext: android.content.Context? = null
     private var maxBodySize: Int = 131072
-    private var redactHeaders: Set<String> = setOf("authorization", "cookie")
-    private var redactJsonFields: Set<String> = setOf("password", "token")
+    private var redactHeaders: Set<String> = emptySet()
+    private var redactJsonFields: Set<String> = emptySet()
     private var notifyEnabled: Boolean = true
     private val requestStartTs: MutableMap<String, Long> = mutableMapOf()
 
@@ -78,9 +78,15 @@ object LogRepositoryStore {
         data.put("id", id)
         if (status != null) data.put("status", status)
         data.put("headers", headers?.redactedHeaders()?.toJsObject())
-        val truncated = truncate(body?.redactJson())
-        data.put("responseBody", truncated.value)
-        data.put("responseBodyTruncated", truncated.truncated)
+        val contentType = contentType(headers)
+        if (body != null && isBinaryContentType(contentType)) {
+            data.put("responseBody", binaryPlaceholder(contentType))
+            data.put("responseBodyTruncated", false)
+        } else {
+            val truncated = truncate(body?.redactJson())
+            data.put("responseBody", truncated.value)
+            data.put("responseBodyTruncated", truncated.truncated)
+        }
         if (error != null) data.put("error", error)
         if (protocol != null) data.put("protocol", protocol)
         if (ssl != null) data.put("ssl", ssl)
@@ -121,6 +127,36 @@ object LogRepositoryStore {
     }
 
     private data class Truncated(val value: String?, val truncated: Boolean)
+
+    private fun contentType(headers: Map<String, String>?): String? {
+        if (headers == null) return null
+        for ((key, value) in headers) {
+            if (key.lowercase() == "content-type") return value.lowercase()
+        }
+        return null
+    }
+
+    private val binaryPrefixes = listOf(
+        "image/", "video/", "audio/", "application/octet-stream",
+        "application/pdf", "application/zip", "application/gzip",
+        "font/", "application/vnd.", "application/x-protobuf"
+    )
+
+    private fun isBinaryContentType(contentType: String?): Boolean {
+        val ct = contentType ?: return false
+        return binaryPrefixes.any { ct.startsWith(it) }
+    }
+
+    private fun binaryPlaceholder(contentType: String?): String {
+        val ct = contentType ?: "unknown"
+        val mediaType = when {
+            ct.startsWith("image/") -> "Image"
+            ct.startsWith("video/") -> "Video"
+            ct.startsWith("audio/") -> "Audio"
+            else -> "Binary"
+        }
+        return "[$mediaType preview not yet supported ($ct)]"
+    }
 }
 
 private fun Map<String, String>.toJsObject(): JSObject {
