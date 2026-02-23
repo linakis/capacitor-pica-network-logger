@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-02-23
+
 ### Changed
 - Redaction headers and JSON fields now default to empty (no redaction unless explicitly configured). Previously defaulted to `["authorization", "cookie"]` and `["password", "token"]`.
 - Fixed inconsistent redaction behavior between iOS and Android when no config was provided.
