@@ -14,11 +14,14 @@ import org.json.JSONObject
 class PicaNetworkLoggerPlugin : Plugin() {
     private val repository = LogRepository()
     private val configProvider = LoggerConfigProvider()
+    private var enabled = true
 
     override fun load() {
         super.load()
-        repository.attach(bridge.context)
         val config = configProvider.getConfig(this)
+        enabled = config.optBoolean("enabled", true)
+        if (!enabled) return
+        repository.attach(bridge.context)
         LogRepositoryStore.attach(bridge.context, repository, config.getInt("maxBodySize"))
         val redactHeaders = config.get("redactHeaders")?.let { value ->
             when (value) {
@@ -54,6 +57,12 @@ class PicaNetworkLoggerPlugin : Plugin() {
 
     @PluginMethod
     fun startRequest(call: PluginCall) {
+        if (!enabled) {
+            val ret = JSObject()
+            ret.put("id", "")
+            call.resolve(ret)
+            return
+        }
         val method = call.getString("method") ?: "GET"
         val url = call.getString("url") ?: ""
         val headers = call.getObject("headers")?.let { obj ->
@@ -69,6 +78,10 @@ class PicaNetworkLoggerPlugin : Plugin() {
 
     @PluginMethod
     fun finishRequest(call: PluginCall) {
+        if (!enabled) {
+            call.resolve()
+            return
+        }
         val id = call.getString("id") ?: return call.reject("Missing id")
         val status = call.getInt("status")
         val headers = call.getObject("headers")?.let { obj ->
@@ -82,6 +95,10 @@ class PicaNetworkLoggerPlugin : Plugin() {
 
     @PluginMethod
     fun openInspector(call: PluginCall) {
+        if (!enabled) {
+            call.resolve()
+            return
+        }
         val context = bridge.context
         val intent = android.content.Intent(context, InspectorActivity::class.java)
         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

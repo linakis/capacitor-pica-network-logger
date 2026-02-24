@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `enabled` config option (`true` by default). Set to `false` to fully disable the plugin — no SQLite, no logging, no notifications, all methods resolve as no-ops.
+
 ## [0.2.5] - 2026-02-23
 
 ### Changed

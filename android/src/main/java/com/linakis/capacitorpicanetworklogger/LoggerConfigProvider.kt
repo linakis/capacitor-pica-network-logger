@@ -7,6 +7,7 @@ class LoggerConfigProvider {
     fun getConfig(plugin: Plugin): JSObject {
         val config = plugin.bridge.config.getPluginConfiguration("PicaNetworkLogger")
         val output = JSObject()
+        output.put("enabled", config.getBoolean("enabled", true))
         output.put("maxBodySize", config.getInt("maxBodySize", 131072))
         output.put("redactHeaders", config.getArray("redactHeaders"))
         output.put("redactJsonFields", config.getArray("redactJsonFields"))

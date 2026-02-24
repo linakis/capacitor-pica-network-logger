@@ -14,8 +14,13 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openInspector", returnType: CAPPluginReturnPromise)
     ]
     private let configProvider = LoggerConfigProvider()
+    private var enabled = true
 
     @objc func startRequest(_ call: CAPPluginCall) {
+        guard enabled else {
+            call.resolve(["id": ""])
+            return
+        }
         let id = UUID().uuidString
         let method = call.getString("method") ?? "GET"
         let url = call.getString("url") ?? ""
@@ -32,6 +37,10 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func finishRequest(_ call: CAPPluginCall) {
+        guard enabled else {
+            call.resolve()
+            return
+        }
         guard let id = call.getString("id") else {
             call.reject("Missing id")
             return
@@ -55,6 +64,8 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     public override func load() {
         super.load()
         let config = configProvider.getConfig(self)
+        enabled = config["enabled"] as? Bool ?? true
+        guard enabled else { return }
         if let size = config["maxBodySize"] as? Int {
             InspectorLogger.shared.setMaxBodySize(size)
         }
@@ -74,6 +85,10 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func openInspector(_ call: CAPPluginCall) {
+        guard enabled else {
+            call.resolve()
+            return
+        }
         #if canImport(UIKit)
         DispatchQueue.main.async { [weak self] in
             let inspector = UINavigationController(rootViewController: InspectorViewController())
