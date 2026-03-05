@@ -12,6 +12,7 @@ class LoggerConfigProvider {
         }
         return [
             "enabled": config["enabled"] as? Bool ?? true,
+            "notify": config["notify"] as? Bool ?? true,
             "maxBodySize": config["maxBodySize"] as? Int ?? 131072,
             "redactHeaders": config["redactHeaders"] as? [String] ?? [],
             "redactJsonFields": config["redactJsonFields"] as? [String] ?? []
