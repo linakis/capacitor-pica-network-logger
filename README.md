@@ -46,6 +46,7 @@ Add to your app's `capacitor.config.ts`:
 ```ts
 plugins: {
   PicaNetworkLogger: {
+    enabled: true,              // enable the plugin (default: true)
     maxBodySize: 131072,        // max chars per body (default: 128 KB)
     notify: true,               // show notifications per request (default: true)
     redactHeaders: ["authorization", "cookie"],   // header names to redact (default: none)
@@ -56,6 +57,7 @@ plugins: {
 
 | Option | Type | Default | Description |
 |---|---|---|---|
+| `enabled` | `boolean` | `true` | Enable the plugin. When `false`, all methods are no-ops and no notifications are requested. |
 | `maxBodySize` | `number` | `131072` | Maximum characters stored per request/response body. Truncated beyond this. |
 | `notify` | `boolean` | `true` | Post a local notification for each completed request. On Android 13+ requests `POST_NOTIFICATIONS` permission. |
 | `redactHeaders` | `string[]` | `[]` | Header names (case-insensitive) whose values are replaced with `[REDACTED]`. |

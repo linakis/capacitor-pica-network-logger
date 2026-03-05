@@ -4,17 +4,31 @@ import Capacitor
 
 class LoggerConfigProvider {
     func getConfig(_ plugin: CAPPlugin) -> [String: Any] {
-        let raw = plugin.getConfig() as? [AnyHashable: Any] ?? [:]
-        let config = raw.reduce(into: [String: Any]()) { dict, item in
-            if let key = item.key as? String {
-                dict[key] = item.value
-            }
+        guard let bridgeConfig = plugin.bridge?.config else {
+            return defaults()
         }
+        let pluginConfig = bridgeConfig.getPluginConfig("PicaNetworkLogger")
+        let enabled = pluginConfig.getBoolean("enabled", true)
+        let notify = pluginConfig.getBoolean("notify", true)
+        let maxBodySize = pluginConfig.getInt("maxBodySize", 131072)
+        let redactHeaders = bridgeConfig.getPluginConfigValue("PicaNetworkLogger", "redactHeaders") as? [String] ?? []
+        let redactJsonFields = bridgeConfig.getPluginConfigValue("PicaNetworkLogger", "redactJsonFields") as? [String] ?? []
         return [
-            "enabled": config["enabled"] as? Bool ?? true,
-            "maxBodySize": config["maxBodySize"] as? Int ?? 131072,
-            "redactHeaders": config["redactHeaders"] as? [String] ?? [],
-            "redactJsonFields": config["redactJsonFields"] as? [String] ?? []
+            "enabled": enabled,
+            "notify": notify,
+            "maxBodySize": maxBodySize,
+            "redactHeaders": redactHeaders,
+            "redactJsonFields": redactJsonFields
+        ]
+    }
+
+    private func defaults() -> [String: Any] {
+        return [
+            "enabled": true,
+            "notify": true,
+            "maxBodySize": 131072,
+            "redactHeaders": [] as [String],
+            "redactJsonFields": [] as [String]
         ]
     }
 }

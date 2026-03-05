@@ -65,6 +65,9 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         super.load()
         let config = configProvider.getConfig(self)
         enabled = config["enabled"] as? Bool ?? true
+        let notify = config["notify"] as? Bool ?? true
+        InspectorLogger.shared.setNotify(enabled: notify && enabled)
+        requestNotificationPermissionIfNeeded(enabled: notify && enabled)
         guard enabled else { return }
         if let size = config["maxBodySize"] as? Int {
             InspectorLogger.shared.setMaxBodySize(size)
@@ -72,9 +75,6 @@ public class PicaNetworkLoggerPlugin: CAPPlugin, CAPBridgedPlugin {
         let headers = config["redactHeaders"] as? [String] ?? []
         let jsonFields = config["redactJsonFields"] as? [String] ?? []
         InspectorLogger.shared.setRedaction(headers: headers, jsonFields: jsonFields)
-        let notify = config["notify"] as? Bool ?? true
-        InspectorLogger.shared.setNotify(enabled: notify)
-        requestNotificationPermissionIfNeeded(enabled: notify)
     }
 
     private func requestNotificationPermissionIfNeeded(enabled: Bool) {

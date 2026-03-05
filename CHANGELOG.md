@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- iOS: `enabled` and `notify` config options were not being read due to use of the deprecated `plugin.getConfig()` API which always returned an empty dictionary. Switched to `bridge?.config.getPluginConfig()` with the typed `getBoolean`/`getInt` API so all config values are correctly respected.
+- iOS: `notify: false` was silently ignored because `notify` was missing from the config provider, causing notification permission to always be requested.
+- iOS: When `enabled: false`, the `notify` flag was never applied to the logger singleton, leaving it in a notifying state.
+
 ## [0.2.6] - 2026-02-24
 
 ### Added
