@@ -11,5 +11,6 @@ Pod::Spec.new do |s|
   s.resources = ['ios/Plugin/PluginManifest.json']
   s.dependency 'Capacitor'
   s.ios.deployment_target = '14.0'
+  s.swift_version = '5.1'
 
 end
