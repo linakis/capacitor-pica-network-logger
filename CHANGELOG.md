@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-03-10
+
 ### Fixed
 - iOS: Set `s.swift_version = '5.1'` in `CapacitorPicaNetworkLogger.podspec` to improve compatibility with Xcode 26/CocoaPods Swift toolchain resolution.
 
