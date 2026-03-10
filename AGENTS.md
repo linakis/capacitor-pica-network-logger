@@ -25,6 +25,11 @@ Notes
 - The root package.json only includes TypeScript build/clean.
 - There is no lint or unit test script configured at the root.
 
+### Release notes requirement
+- Before running `npm run release`, ensure `CHANGELOG.md` has at least one bullet under `## [Unreleased]`.
+- The release script fails when `[Unreleased]` is empty.
+- Add concise user-facing entries (for example under `### Added`, `### Changed`, or `### Fixed`) for all releaseable changes.
+
 ### Sample app (examples/sample-app/)
 - Install: `cd examples/sample-app && npm install`
 - Dev server: `cd examples/sample-app && npm run dev`
